@@ -1,0 +1,4 @@
+timestamp, index, name, memory.used [MiB], memory.free [MiB], memory.total [MiB], power.draw [W]
+2026/05/09 23:35:44.406, 0, NVIDIA GeForce RTX 5060, 33, 7668, 8151, 7.22
+2026/05/09 23:35:44.914, 0, NVIDIA GeForce RTX 5060, 33, 7668, 8151, 7.22
+2026/05/09 23:35:45.414, 0, NVIDIA GeForce RTX 5060, 185, 7516, 8151, 7.22

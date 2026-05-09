@@ -1,0 +1,13 @@
+total 2.5G
+-rw-r--r-- 1 nobody nogroup  11K May  9 22:14 LICENSE.md
+-rw-r--r-- 1 nobody nogroup 8.7K May  9 22:14 README.md
+-rw-r--r-- 1 nobody nogroup  653 May  9 22:14 config.json
+-rw-r--r-- 1 nobody nogroup  137 May  9 22:14 generation_config.json
+-rw-r--r-- 1 nobody nogroup 446K May  9 22:14 merges.txt
+-rw-r--r-- 1 nobody nogroup 2.5G May  9 23:26 pytorch_model.bin
+-rw-r--r-- 1 nobody nogroup  441 May  9 22:14 special_tokens_map.json
+-rw-r--r-- 1 nobody nogroup  685 May  9 22:14 tokenizer_config.json
+-rw-r--r-- 1 nobody nogroup 878K May  9 22:14 vocab.json
+
+Disk usage including local HF download cache:
+6.1G	/home/ssu/models/opt-1.3b

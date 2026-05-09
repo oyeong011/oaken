@@ -1,0 +1,39 @@
+{
+  "name": "oaken_eval",
+  "command": [
+    "docker",
+    "exec",
+    "-w",
+    "/workspace",
+    "oaken-ae-container",
+    "/opt/conda/envs/oaken/bin/python",
+    "eval_perplexity.py",
+    "-m",
+    "opt",
+    "-s",
+    "1.3b",
+    "-t",
+    "wikitext",
+    "-q",
+    "results/rtx5060/opt-1.3b/oaken-quantizer.json",
+    "--quant-method",
+    "oaken",
+    "--gpu-start-idx",
+    "0",
+    "--gpu-count",
+    "1"
+  ],
+  "started_at": "2026-05-10T00:01:39",
+  "ended_at": "2026-05-10T00:02:22",
+  "elapsed_seconds": 42.573399715998676,
+  "exit_code": 0,
+  "idle_vram_mib": {
+    "used_mib": 33,
+    "free_mib": 7668,
+    "total_mib": 8151
+  },
+  "peak_vram_mib": 4419,
+  "vram_samples": 85,
+  "log": "results/rtx5060/opt-1.3b/logs/oaken_eval.log",
+  "vram_log": "results/rtx5060/opt-1.3b/logs/oaken_eval_vram.csv"
+}

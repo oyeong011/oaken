@@ -1,0 +1,13 @@
+# run: download_opt_1_3b_pytorch_only
+# start: 2026-05-09T23:20:36
+# idle_vram: {'used_mib': 33, 'free_mib': 7668, 'total_mib': 8151}
+# command: docker exec -e HF_HUB_DISABLE_XET=1 -w /workspace oaken-ae-container /opt/conda/envs/oaken/bin/python -c from huggingface_hub import snapshot_download; snapshot_download(repo_id='facebook/opt-1.3b', local_dir='/data/models/opt-1.3b', local_dir_use_symlinks=False, allow_patterns=['config.json','generation_config.json','pytorch_model.bin','merges.txt','vocab.json','tokenizer_config.json','special_tokens_map.json']); print('downloaded /data/models/opt-1.3b pytorch-only')
+
+/opt/conda/envs/oaken/lib/python3.10/site-packages/huggingface_hub/file_download.py:986: UserWarning: `local_dir_use_symlinks` parameter is deprecated and will be ignored. The process to download files to a local folder has been updated and do not rely on symlinks anymore. You only need to pass a destination folder as`local_dir`.
+For more details, check out https://huggingface.co/docs/huggingface_hub/main/en/guides/download#download-files-to-local-folder.
+  warnings.warn(
+
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]
+Fetching 7 files:  57%|█████▋    | 4/7 [05:45<04:19, 86.46s/it]
+Fetching 7 files: 100%|██████████| 7/7 [05:45<00:00, 49.41s/it]
+downloaded /data/models/opt-1.3b pytorch-only
