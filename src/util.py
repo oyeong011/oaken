@@ -46,6 +46,8 @@ def get_model_device_map(model_name: str, num_device: int, num_layer: int,
                 'model.decoder.embed_positions': LAST_GPU_IDX,
                 'lm_head': LAST_GPU_IDX,
                 'model.decoder.final_layer_norm': LAST_GPU_IDX,
+                'model.decoder.project_in': LAST_GPU_IDX,
+                'model.decoder.project_out': LAST_GPU_IDX,
             }
 
             set_decoder_device_map(
