@@ -42,17 +42,24 @@ class OakenQuantizer:
     
     @staticmethod
     def uniform_quantization_threshold(tensor, bits: int, minval: torch.Tensor, maxval: torch.Tensor):
-        minval = torch.as_tensor(minval, device=tensor.device, dtype=tensor.dtype)
-        maxval = torch.as_tensor(maxval, device=tensor.device, dtype=tensor.dtype)
+        minval = torch.as_tensor(minval, device=tensor.device, dtype=torch.float32)
+        maxval = torch.as_tensor(maxval, device=tensor.device, dtype=torch.float32)
+        tensor_float = tensor.float()
+
         rangeval = maxval - minval
-        zero_range = torch.abs(rangeval) <= OakenQuantizer.FLOAT_TOLERANCE
-        rangeval = torch.where(zero_range, torch.ones_like(rangeval), rangeval)
-        qx = (2 ** bits - 1) / rangeval
+        zero_range = torch.logical_or(
+            torch.abs(rangeval) <= OakenQuantizer.FLOAT_TOLERANCE,
+            ~torch.isfinite(rangeval),
+        )
+        safe_rangeval = torch.where(zero_range, torch.ones_like(rangeval), rangeval)
+
+        qx = (2 ** bits - 1) / safe_rangeval
         offset = minval * qx
-        quantized = torch.round(qx * tensor - offset)
-        quantized = torch.nan_to_num(quantized, nan=2 ** bits - 1)
+        quantized = torch.round(qx * tensor_float - offset)
+        quantized = torch.nan_to_num(quantized, nan=0.0, posinf=2 ** bits - 1, neginf=0.0)
         dequantized = (quantized + offset) / qx
-        return torch.where(zero_range, tensor, dequantized)
+        dequantized = torch.where(zero_range, tensor_float, dequantized)
+        return dequantized.to(tensor.dtype)
 
     @staticmethod
     def uniform_quantization(tensor, bits: int):

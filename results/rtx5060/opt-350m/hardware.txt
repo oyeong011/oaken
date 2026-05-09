@@ -1,0 +1,25 @@
+# Hardware and Environment
+
+## Host GPU
+name, memory.total [MiB], driver_version
+NVIDIA GeForce RTX 5060, 8151 MiB, 590.48.01
+
+## Docker container
+name=oaken-ae-container status=Up 4 hours image=oaken-ae-img
+
+## Container software
+python=Python 3.10.20
+torch=2.11.0+cu130
+cuda_available=True
+gpu=NVIDIA GeForce RTX 5060
+transformers=4.47.0
+
+## Model and artifacts
+634M	/data/models/opt-350m
+12K	quantizer/oaken/opt-350m.json
+12K	results/rtx5060/opt-350m/logs/oaken_eval_after_zero_range_fix.log
+4.0K	results/rtx5060/opt-350m/logs/oaken_eval_after_zero_range_fix_vram.csv
+12K	results/rtx5060/opt-350m/logs/oaken_profile_final.log
+4.0K	results/rtx5060/opt-350m/logs/oaken_profile_final_vram.csv
+4.0K	results/rtx5060/opt-350m/logs/original_fp16_eval.log
+4.0K	results/rtx5060/opt-350m/logs/original_fp16_eval_vram.csv

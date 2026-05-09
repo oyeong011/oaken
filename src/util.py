@@ -22,7 +22,7 @@ def set_decoder_device_map(device_map: dict, prefix: str, num_device: int, num_l
     return
 
 def get_model_device_map(model_name: str, num_device: int, num_layer: int,
-                         device_start_num: int=0):
+                         device_start_num: int=0, config=None):
     device_map = dict()
     LAST_GPU_IDX = device_start_num + num_device - 1
     match model_name:
@@ -45,10 +45,12 @@ def get_model_device_map(model_name: str, num_device: int, num_layer: int,
                 'model.decoder.embed_tokens': LAST_GPU_IDX,
                 'model.decoder.embed_positions': LAST_GPU_IDX,
                 'lm_head': LAST_GPU_IDX,
-                'model.decoder.final_layer_norm': LAST_GPU_IDX,
-                'model.decoder.project_in': LAST_GPU_IDX,
-                'model.decoder.project_out': LAST_GPU_IDX,
             }
+            if config is None or getattr(config, "do_layer_norm_before", False):
+                device_map['model.decoder.final_layer_norm'] = LAST_GPU_IDX
+            if config is None or getattr(config, "word_embed_proj_dim", None) != getattr(config, "hidden_size", None):
+                device_map['model.decoder.project_in'] = device_start_num
+                device_map['model.decoder.project_out'] = LAST_GPU_IDX
 
             set_decoder_device_map(
                 device_map,

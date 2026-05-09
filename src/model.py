@@ -26,6 +26,7 @@ def get_model(device, tokenizer, model: str, size: str, gpu_count=1, gpu_start_i
         gpu_count,
         config.num_hidden_layers,
         gpu_start_idx,
+        config=config,
     )
 
     match model:
