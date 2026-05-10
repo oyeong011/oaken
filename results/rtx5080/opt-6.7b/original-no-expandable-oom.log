@@ -1,0 +1,38 @@
+= Run Configuration ===================
+Model name: opt
+Model size: 6.7b
+Task: wikitext
+Single run: False
+Quantization method: none
+Quantizer path: None
+Used GPUs: 0 - 0
+=======================================
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:03<00:03,  3.03s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:03<00:00,  1.57s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:03<00:00,  1.79s/it]
+/opt/conda/envs/oaken/lib/python3.10/site-packages/accelerate/utils/modeling.py:1598: UserWarning: The following device_map keys do not match any submodules in the model: ['model.decoder.project_in', 'model.decoder.project_out']
+  warnings.warn(
+Running Original Model
+  0%|          | 0/141 [00:00<?, ?it/s]  1%|          | 1/141 [00:00<01:02,  2.23it/s]  1%|          | 1/141 [00:00<01:42,  1.37it/s]
+Traceback (most recent call last):
+  File "/workspace/eval_perplexity.py", line 129, in <module>
+    main(args)
+  File "/workspace/eval_perplexity.py", line 57, in main
+    eval_perplexity(args, model, tokenizer, torch_device)
+  File "/workspace/eval_perplexity.py", line 86, in eval_perplexity
+    outputs = model(input_ids, labels=target_ids)
+  File "/opt/conda/envs/oaken/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/opt/conda/envs/oaken/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/workspace/transformers/src/transformers/models/opt/modeling_opt.py", line 1200, in forward
+    loss = loss_fct(shift_logits.view(-1, self.config.vocab_size), shift_labels.view(-1))
+  File "/opt/conda/envs/oaken/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/opt/conda/envs/oaken/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/opt/conda/envs/oaken/lib/python3.10/site-packages/torch/nn/modules/loss.py", line 1394, in forward
+    return F.cross_entropy(
+  File "/opt/conda/envs/oaken/lib/python3.10/site-packages/torch/nn/functional.py", line 3504, in cross_entropy
+    return torch._C._nn.cross_entropy_loss(
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 198.00 MiB. GPU 0 has a total capacity of 15.46 GiB of which 169.56 MiB is free. Including non-PyTorch memory, this process has 15.25 GiB memory in use. Of the allocated memory 14.81 GiB is allocated by PyTorch, and 138.06 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+WALL_SECONDS 11
+PEAK_VRAM_MIB 15662
