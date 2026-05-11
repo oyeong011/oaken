@@ -20,6 +20,7 @@ SUMMARY_MD = OUTPUT_ROOT / "threshold_summary.md"
 SUCCESSFUL_MODELS = {
     ("rtx5060", "opt-350m"),
     ("rtx5060", "opt-1.3b"),
+    ("rtx5060", "opt-2.7b"),
     ("rtx5080", "opt-125m"),
     ("rtx5080", "opt-350m"),
     ("rtx5080", "opt-1.3b"),
@@ -85,7 +86,7 @@ def _write_csv(rows: list[dict[str, object]]) -> None:
         "abs_max",
     ]
     with LONG_CSV.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 

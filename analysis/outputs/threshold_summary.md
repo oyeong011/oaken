@@ -5,6 +5,7 @@ This scaffold parses successful Wikitext Oaken quantizer artifacts from the curr
 ## Sources
 
 - `results/rtx5060/opt-1.3b/oaken-quantizer.json`
+- `results/rtx5060/opt-2.7b/oaken-quantizer.json`
 - `results/rtx5060/opt-350m/oaken-quantizer.json`
 - `results/rtx5080/opt-1.3b/oaken-quantizer.json`
 - `results/rtx5080/opt-125m/oaken-quantizer.json`
@@ -18,7 +19,7 @@ This scaffold parses successful Wikitext Oaken quantizer artifacts from the curr
 
 ## Coverage
 
-- Rows: 840
+- Rows: 1032
 - Layers observed: 0 through 31
 - Quantization groups: 0, 1, 2
 - Tensor types: key, value
@@ -29,6 +30,8 @@ This scaffold parses successful Wikitext Oaken quantizer artifacts from the curr
 | --- | --- | --- | ---: | ---: | ---: |
 | RTX 5060 | OPT-1.3B | key | 72 | 4.163223 | 14.975122 |
 | RTX 5060 | OPT-1.3B | value | 72 | 0.906980 | 2.688844 |
+| RTX 5060 | OPT-2.7B | key | 96 | 4.530290 | 12.027427 |
+| RTX 5060 | OPT-2.7B | value | 96 | 0.906375 | 2.753823 |
 | RTX 5060 | OPT-350M | key | 72 | 2.989748 | 6.428524 |
 | RTX 5060 | OPT-350M | value | 72 | 1.047489 | 1.846271 |
 | RTX 5080 | OPT-1.3B | key | 72 | 4.163242 | 14.975122 |
