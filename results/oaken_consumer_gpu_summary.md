@@ -61,9 +61,9 @@ The largest observed delta in this set is OPT-1.3B at +0.7578 on both GPUs. The 
 
 ## VRAM Boundary
 
-The RTX 5060 runs show that OPT-2.7B remains viable for the Oaken accuracy path on an 8GB-class consumer GPU, but it is close to the memory budget. For OPT-2.7B, the default allocator peaked at 7.65GB during profiling and 7.54GB during Oaken eval; the expandable allocator repeat preserved PPL while reducing the profiling and eval peaks to 7.19GB and 7.43GB.
+The RTX 5060 runs show that an 8GB-class consumer GPU can complete the Oaken Wikitext accuracy path up to OPT-2.7B. The final OPT-2.7B result completed original FP16 Wikitext eval, Oaken offline profiling, and Oaken Wikitext eval with no OOM, NaN, traceback, CUDA error, or runtime error. It is close to the memory budget: the default allocator peaked at 7.65GB during profiling and 7.54GB during Oaken eval; the expandable allocator repeat preserved PPL while reducing the profiling and eval peaks to 7.19GB and 7.43GB.
 
-The RTX 5080 OPT-6.7B run is the meaningful 16GB boundary. Original FP16 Wikitext evaluation and Oaken offline profiling completed only with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`; Oaken Wikitext evaluation still failed with CUDA OOM after reaching a 15.83GB peak. Without allocator tuning, the original FP16 eval also failed near the same boundary.
+The RTX 5080 OPT-6.7B run remains the upper boundary case in this result set. Original FP16 Wikitext evaluation and Oaken offline profiling completed only with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`; Oaken Wikitext evaluation still failed with CUDA OOM after reaching a 15.83GB peak. Without allocator tuning, the original FP16 eval also failed near the same boundary.
 
 ## Compatibility Fixes
 
