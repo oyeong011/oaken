@@ -10,6 +10,7 @@ import json
 import statistics
 from collections import defaultdict
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 
 MODEL = "OPT-350M"
@@ -21,6 +22,20 @@ CSV_PATH = OUTPUT_DIR / "thresholds_by_dataset.csv"
 SUMMARY_PATH = OUTPUT_DIR / "stability_summary.md"
 PLOT_DIR = OUTPUT_DIR / "plots"
 LOG_DIR = OUTPUT_DIR / "logs"
+SVG_WIDTH = 1200
+SVG_HEIGHT = 900
+PANEL_HEIGHT = 320
+PANEL_GAP = 48
+LEFT_MARGIN = 86
+RIGHT_MARGIN = 28
+TOP_MARGIN = 56
+BOTTOM_MARGIN = 68
+LEGEND_Y = 26
+COLORS = {
+    "wikitext": "#2f6fdb",
+    "winogrande": "#d94841",
+    "hellaswag": "#2ca25f",
+}
 
 
 def _quantizer_path(dataset: str) -> Path:
@@ -289,6 +304,176 @@ The successful task quantizers preserve the same coarse layer/tensor/group schem
     SUMMARY_PATH.write_text(summary)
 
 
+def _series_by_dataset_layer(rows: list[dict[str, object]], metric: str, absolute: bool = False) -> dict[str, list[float | None]]:
+    by_dataset_layer: dict[tuple[str, int], list[float]] = defaultdict(list)
+    for row in rows:
+        key = (str(row["dataset"]), int(row["layer"]))
+        value = float(row[metric] or 0.0)
+        if absolute:
+            value = abs(value)
+        by_dataset_layer[key].append(value)
+
+    series: dict[str, list[float | None]] = {}
+    layers = sorted({int(row["layer"]) for row in rows})
+    for dataset in EXPECTED_DATASETS:
+        if not any(key[0] == dataset for key in by_dataset_layer):
+            continue
+        values: list[float | None] = []
+        for layer in layers:
+            group = by_dataset_layer.get((dataset, layer))
+            values.append(statistics.mean(group) if group else None)
+        series[dataset] = values
+    return series
+
+
+def _panel_series(rows: list[dict[str, object]], metric: str, absolute: bool = False) -> tuple[list[int], dict[str, dict[str, list[float | None]]]]:
+    layers = sorted({int(row["layer"]) for row in rows})
+    panels: dict[str, dict[str, list[float | None]]] = {}
+    for tensor_type in ("key", "value"):
+        panel_rows = [row for row in rows if str(row["tensor_type"]) == tensor_type]
+        panels[tensor_type] = _series_by_dataset_layer(panel_rows, metric, absolute=absolute)
+    return layers, panels
+
+
+def _svg_path_commands(points: list[tuple[float, float]]) -> str:
+    return " ".join((f"M {points[0][0]:.2f} {points[0][1]:.2f} " + " ".join(f"L {x:.2f} {y:.2f}" for x, y in points[1:])) if points else "")
+
+
+def _series_max(series: dict[str, list[float | None]]) -> float:
+    values = [value for series_values in series.values() for value in series_values if value is not None]
+    return max(values) if values else 0.0
+
+
+def _svg_header(width: int, height: int, title: str) -> list[str]:
+    return [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="{escape(title)}">',
+        f"<title>{escape(title)}</title>",
+        '<rect width="100%" height="100%" fill="#ffffff"/>',
+    ]
+
+
+def _svg_text(x: float, y: float, text: str, *, size: int = 14, anchor: str = "start", weight: str = "normal", fill: str = "#1f2937", rotate: float | None = None) -> str:
+    transform = f' transform="rotate({rotate:.2f} {x:.2f} {y:.2f})"' if rotate is not None else ""
+    return (
+        f'<text x="{x:.2f}" y="{y:.2f}" font-family="Arial, Helvetica, sans-serif" '
+        f'font-size="{size}" text-anchor="{anchor}" font-weight="{weight}" fill="{fill}"{transform}>'
+        f"{escape(text)}</text>"
+    )
+
+
+def _render_panel(
+    lines: list[str],
+    *,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    title: str,
+    y_label: str,
+    layers: list[int],
+    series: dict[str, list[float | None]],
+    y_max: float,
+    show_zero_line: bool = False,
+    dashed_zero: bool = False,
+) -> None:
+    left = x + LEFT_MARGIN
+    top = y + TOP_MARGIN
+    chart_w = width - LEFT_MARGIN - RIGHT_MARGIN
+    chart_h = height - TOP_MARGIN - BOTTOM_MARGIN
+    lines.append(f'<rect x="{x:.2f}" y="{y:.2f}" width="{width:.2f}" height="{height:.2f}" fill="#fafafa" stroke="#e5e7eb"/>')
+    lines.append(_svg_text(x + 12, y + 24, title, size=18, weight="bold"))
+    lines.append(_svg_text(x + 12, y + 44, y_label, size=12, fill="#4b5563"))
+    if show_zero_line:
+        zero_y = top + chart_h
+        dash_attr = ' stroke-dasharray="5 4"' if dashed_zero else ""
+        lines.append(
+            f'<line x1="{left:.2f}" y1="{zero_y:.2f}" x2="{left + chart_w:.2f}" y2="{zero_y:.2f}" stroke="#9ca3af" '
+            f'stroke-width="1.2"{dash_attr}/>'
+        )
+
+    step_x = chart_w / max(len(layers) - 1, 1)
+    for idx, layer in enumerate(layers):
+        px = left + idx * step_x
+        if idx % 3 == 0 or idx == len(layers) - 1:
+            lines.append(f'<line x1="{px:.2f}" y1="{top + chart_h:.2f}" x2="{px:.2f}" y2="{top + chart_h + 6:.2f}" stroke="#6b7280" stroke-width="1"/>')
+            lines.append(_svg_text(px, top + chart_h + 22, str(layer), size=10, anchor="middle", fill="#6b7280"))
+
+    for tick in range(5):
+        value = y_max * tick / 4 if y_max else 0.0
+        py = top + chart_h - (value / y_max * chart_h if y_max else 0.0)
+        lines.append(f'<line x1="{left - 5:.2f}" y1="{py:.2f}" x2="{left:.2f}" y2="{py:.2f}" stroke="#6b7280" stroke-width="1"/>')
+        lines.append(f'<line x1="{left:.2f}" y1="{py:.2f}" x2="{left + chart_w:.2f}" y2="{py:.2f}" stroke="#e5e7eb" stroke-width="1"/>')
+        lines.append(_svg_text(left - 10, py + 4, f"{value:.2f}", size=10, anchor="end", fill="#6b7280"))
+
+    for idx, (name, values) in enumerate(series.items()):
+        color = COLORS.get(name, "#6b7280")
+        points: list[tuple[float, float]] = []
+        for layer_idx, value in enumerate(values):
+            if value is None or y_max == 0:
+                continue
+            px = left + layer_idx * step_x
+            py = top + chart_h - (min(value, y_max) / y_max * chart_h)
+            points.append((px, py))
+        if not points:
+            continue
+        lines.append(
+            f'<polyline fill="none" stroke="{color}" stroke-width="2.5" stroke-linejoin="round" '
+            f'stroke-linecap="round" points="{" ".join(f"{x:.2f},{y:.2f}" for x, y in points)}"/>'
+        )
+        for px, py in points:
+            lines.append(f'<circle cx="{px:.2f}" cy="{py:.2f}" r="2.8" fill="{color}"/>')
+
+    legend_x = x + width - 200
+    for idx, name in enumerate(series):
+        ly = y + LEGEND_Y + idx * 20
+        color = COLORS.get(name, "#6b7280")
+        lines.append(f'<rect x="{legend_x:.2f}" y="{ly - 10:.2f}" width="12" height="12" fill="{color}"/>')
+        lines.append(_svg_text(legend_x + 18, ly, name, size=12, fill="#374151"))
+
+
+def _write_svg_file(path: Path, title: str, panels: list[tuple[str, str, dict[str, list[float | None]], float]], layers: list[int]) -> None:
+    width = SVG_WIDTH
+    height = 90 + len(panels) * (PANEL_HEIGHT + PANEL_GAP) - PANEL_GAP
+    lines = _svg_header(width, height, title)
+    lines.append(_svg_text(24, 34, title, size=22, weight="bold"))
+    for idx, (panel_title, y_label, series, y_max) in enumerate(panels):
+        panel_y = 60 + idx * (PANEL_HEIGHT + PANEL_GAP)
+        _render_panel(
+            lines,
+            x=24,
+            y=panel_y,
+            width=width - 48,
+            height=PANEL_HEIGHT,
+            title=panel_title,
+            y_label=y_label,
+            layers=layers,
+            series=series,
+            y_max=y_max,
+            show_zero_line="relative" in title.lower(),
+            dashed_zero=True,
+        )
+    lines.append("</svg>")
+    path.write_text("\n".join(lines))
+
+
+def _write_svg_plots(rows: list[dict[str, object]]) -> None:
+    PLOT_DIR.mkdir(parents=True, exist_ok=True)
+    layers, abs_panels = _panel_series(rows, "abs_max", absolute=False)
+    _, rel_panels = _panel_series(rows, "absmax_rel_diff_from_baseline", absolute=True)
+
+    abs_series = [
+        ("key", "Mean abs_max", abs_panels["key"], _series_max(abs_panels["key"])),
+        ("value", "Mean abs_max", abs_panels["value"], _series_max(abs_panels["value"])),
+    ]
+    rel_series = [
+        ("key", "Mean abs_max relative diff from Wikitext", rel_panels["key"], _series_max(rel_panels["key"])),
+        ("value", "Mean abs_max relative diff from Wikitext", rel_panels["value"], _series_max(rel_panels["value"])),
+    ]
+    _write_svg_file(PLOT_DIR / "absmax_by_dataset_layer.svg", "OPT-350M abs_max by dataset and layer", abs_series, layers)
+    _write_svg_file(PLOT_DIR / "relative_diff_from_wikitext.svg", "OPT-350M relative difference from Wikitext", rel_series, layers)
+
+
 def _import_pyplot():
     try:
         with contextlib.redirect_stderr(io.StringIO()):
@@ -349,10 +534,12 @@ def _plot_relative_diff(plt, rows: list[dict[str, object]]) -> None:
 def _write_plots(rows: list[dict[str, object]]) -> None:
     plt = _import_pyplot()
     if plt is None:
+        _write_svg_plots(rows)
         return
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
     _plot_absmax_by_dataset_layer(plt, rows)
     _plot_relative_diff(plt, rows)
+    _write_svg_plots(rows)
 
 
 def main() -> int:
