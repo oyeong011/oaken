@@ -1,0 +1,47 @@
+Recorded at: 2026-05-11T15:19:44
+
+== host nvidia-smi ==
+Mon May 11 15:19:44 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 590.48.01              Driver Version: 590.48.01      CUDA Version: 13.1     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 5060        Off |   00000000:01:00.0 Off |                  N/A |
+|  0%   36C    P8              7W /  145W |      33MiB /   8151MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            1386      G   /usr/lib/xorg/Xorg                       10MiB |
+|    0   N/A  N/A            1554      G   /usr/bin/gnome-shell                      3MiB |
++-----------------------------------------------------------------------------------------+
+
+== docker ==
+CONTAINER ID   IMAGE          COMMAND                  CREATED        STATUS        PORTS     NAMES
+3c33f394d154   oaken-ae-img   "/opt/nvidia/nvidia_…"   46 hours ago   Up 46 hours             oaken-ae-container
+
+== container python/torch ==
+3.10.20 (main, Mar 11 2026, 17:46:40) [GCC 14.3.0]
+2.11.0+cu130
+True
+NVIDIA GeForce RTX 5060
+
+== model path ==
+/data/models/opt-350m
+LICENSE.md 11117
+generation_config.json 137
+config.json 644
+README.md 8778
+merges.txt 456318
+.gitattributes 1173
+special_tokens_map.json 441
+tokenizer_config.json 685
+vocab.json 898822
+pytorch_model.bin 662513657
