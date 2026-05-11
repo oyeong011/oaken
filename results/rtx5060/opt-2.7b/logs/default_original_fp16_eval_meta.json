@@ -1,0 +1,37 @@
+{
+  "name": "default_original_fp16_eval",
+  "command": [
+    "docker",
+    "exec",
+    "-w",
+    "/workspace",
+    "oaken-ae-container",
+    "/opt/conda/envs/oaken/bin/python",
+    "eval_perplexity.py",
+    "-m",
+    "opt",
+    "-s",
+    "2.7b",
+    "-t",
+    "wikitext",
+    "--quant-method",
+    "none",
+    "--gpu-start-idx",
+    "0",
+    "--gpu-count",
+    "1"
+  ],
+  "started_at": "2026-05-10T12:51:33",
+  "ended_at": "2026-05-10T12:52:27",
+  "elapsed_seconds": 54.106173821986886,
+  "exit_code": 0,
+  "idle_vram_mib": {
+    "used_mib": 33,
+    "free_mib": 7668,
+    "total_mib": 8151
+  },
+  "peak_vram_mib": 7515,
+  "vram_samples": 108,
+  "log": "results/rtx5060/opt-2.7b/logs/default_original_fp16_eval.log",
+  "vram_log": "results/rtx5060/opt-2.7b/logs/default_original_fp16_eval_vram.csv"
+}

@@ -1,0 +1,7 @@
+/data/models/opt-2.7b/tokenizer_config.json 685
+/data/models/opt-2.7b/special_tokens_map.json 441
+/data/models/opt-2.7b/merges.txt 456318
+/data/models/opt-2.7b/vocab.json 898822
+/data/models/opt-2.7b/config.json 691
+/data/models/opt-2.7b/generation_config.json 137
+/data/models/opt-2.7b/pytorch_model.bin 5303359381

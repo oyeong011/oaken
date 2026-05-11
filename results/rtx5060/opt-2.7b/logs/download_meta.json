@@ -1,0 +1,28 @@
+{
+  "name": "download_opt_2_7b_pytorch_only",
+  "command": [
+    "docker",
+    "exec",
+    "-e",
+    "HF_HUB_DISABLE_XET=1",
+    "-w",
+    "/workspace",
+    "oaken-ae-container",
+    "/opt/conda/envs/oaken/bin/python",
+    "-c",
+    "from huggingface_hub import snapshot_download; snapshot_download(repo_id='facebook/opt-2.7b', local_dir='/data/models/opt-2.7b', local_dir_use_symlinks=False, allow_patterns=['config.json','generation_config.json','pytorch_model.bin','merges.txt','vocab.json','tokenizer_config.json','special_tokens_map.json']); print('downloaded /data/models/opt-2.7b pytorch-only')"
+  ],
+  "started_at": "2026-05-10T11:51:19",
+  "ended_at": "2026-05-10T12:41:32",
+  "elapsed_seconds": 3012.3432342739834,
+  "exit_code": 0,
+  "idle_vram_mib": {
+    "used_mib": 33,
+    "free_mib": 7668,
+    "total_mib": 8151
+  },
+  "peak_vram_mib": 33,
+  "vram_samples": 6021,
+  "log": "results/rtx5060/opt-2.7b/logs/download.log",
+  "vram_log": "results/rtx5060/opt-2.7b/logs/download_vram.csv"
+}

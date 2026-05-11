@@ -1,0 +1,43 @@
+{
+  "name": "expandable_oaken_profile",
+  "command": [
+    "docker",
+    "exec",
+    "-e",
+    "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True",
+    "-w",
+    "/workspace",
+    "oaken-ae-container",
+    "/opt/conda/envs/oaken/bin/python",
+    "oaken_preprocess_activation.py",
+    "-m",
+    "opt",
+    "-s",
+    "2.7b",
+    "-t",
+    "wikitext",
+    "-f",
+    "0.04",
+    "0.9",
+    "0.06",
+    "-o",
+    "results/rtx5060/opt-2.7b/oaken-quantizer-expandable.json",
+    "--gpu-start-idx",
+    "0",
+    "--gpu-count",
+    "1"
+  ],
+  "started_at": "2026-05-10T12:58:07",
+  "ended_at": "2026-05-10T13:00:31",
+  "elapsed_seconds": 144.16443848898052,
+  "exit_code": 0,
+  "idle_vram_mib": {
+    "used_mib": 33,
+    "free_mib": 7668,
+    "total_mib": 8151
+  },
+  "peak_vram_mib": 7187,
+  "vram_samples": 288,
+  "log": "results/rtx5060/opt-2.7b/logs/expandable_oaken_profile.log",
+  "vram_log": "results/rtx5060/opt-2.7b/logs/expandable_oaken_profile_vram.csv"
+}
