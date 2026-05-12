@@ -69,9 +69,16 @@ def eval_perplexity(args, model, tokenizer, device):
     test = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
     encodings = tokenizer("\n\n".join(test["text"]), return_tensors="pt")
 
-    max_length = 2048
-    stride = 2048
+    max_length = args.max_length
+    stride = args.stride if args.stride is not None else max_length
     seq_len = encodings.input_ids.size(1)
+    if args.eval_token_limit is not None:
+        seq_len = min(seq_len, args.eval_token_limit)
+        encodings.input_ids = encodings.input_ids[:, :seq_len]
+
+    print(f"Max sequence length: {max_length}")
+    print(f"Stride: {stride}")
+    print(f"Evaluated tokens: {seq_len}")
 
     nlls = []
     prev_end_loc = 0
@@ -111,6 +118,12 @@ if __name__ == "__main__":
                         type=str, required=False, dest="quantizer_path", help="channel-wise quantization information.")
     parser.add_argument("--quant-method",
                       type=str, required=True, dest="quant_method", help="Output file path for activation stats.")
+    parser.add_argument("--max-length", default=2048,
+                      type=int, required=False, dest="max_length", help="Maximum sequence length for Wikitext perplexity chunks.")
+    parser.add_argument("--stride", default=None,
+                      type=int, required=False, dest="stride", help="Stride between Wikitext perplexity chunks. Defaults to max length.")
+    parser.add_argument("--eval-token-limit", default=None,
+                      type=int, required=False, dest="eval_token_limit", help="Optional token limit for bounded Wikitext experiments.")
     
     # Arguments for Oaken
     parser.add_argument("-f", "--outlier_frac", default=0.01,
