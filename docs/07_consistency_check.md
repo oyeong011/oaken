@@ -1,45 +1,55 @@
 # Consistency Check
 
-## 1. Numerical Claims Table
+검증 기준은 repository 안의 `README.md`, `docs/00_experiment_inventory.md`부터 `docs/06_one_page_summary.md`, 그리고 `results/` 아래 CSV/summary file이다. Prior note에만 있고 repository 안에서 source file을 찾지 못한 숫자는 확정 claim으로 쓰지 않았다.
 
-| Claim | Appears in | Source CSV/MD | Consistent? | Notes |
-| --- | --- | --- | --- | --- |
-| RTX 5080 Qwen sweep has 80 rows, 76 OK, 4 OOM | docs 01/02/03/06 | `/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_status_count.csv` | Yes | 76+4=80. |
-| RTX 5080 Qwen OOM at B=8, S=8192 for all modes | docs 01/03/06 | `/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_oom_cases.csv` | Yes | dynamic/offloaded/no_cache/quantized all listed. |
-| `kv_actual_over_theory=1.0` for successful RTX 5080 Qwen rows | docs 01/02/03/06 | `/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_qwen25_analysis.md` | Yes | analysis table reports mean/min/max 1.0. |
-| Quantized throughput ratio 0.744150 | docs 01/02/03 | `/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_ratios_vs_dynamic.csv` | Yes | Same exact value used. |
-| Offloaded throughput ratio 0.594451 | docs 01/02/03 | `/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_ratios_vs_dynamic.csv` | Yes | Same exact value used. |
-| no_cache throughput ratio 0.093942 | docs 01/02/03 | `/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_ratios_vs_dynamic.csv` | Yes | Same exact value used. |
-| RTX 5060 OPT-1.3B dynamic OOM/rescue | AGENTS prior context only | not found in repository | Not supported | Docs weaken this to missing evidence. |
-| RTX 5060 Qwen dynamic OOM/rescue | AGENTS prior context only | not found in repository | Not supported | Docs weaken this to missing evidence. |
+## 1. Numerical claims table
 
-## 2. Terminology Check
+| Claim | Appears in | Source CSV / file | Consistent? | Notes |
+|---|---|---|---|---|
+| Qwen sanity rows have `position_valid=True` | README, docs/00-06 | `results/rtx5060_qwen25_15b_sanity.csv` | Yes | All 4 sanity rows record `position_valid=True`. |
+| Qwen `max_position_embeddings=32768` | README, docs/00-06 | `results/rtx5060_qwen25_15b_sanity.csv` | Yes | Used to frame 12288/16384 as position-valid. |
+| Qwen GQA/MQA metadata is `num_attention_heads=12`, `num_key_value_heads=2`, `head_dim=128` | docs/01, docs/03, docs/04 | `results/rtx5060_qwen25_15b_sanity.csv` | Yes | Supports key/value-head formula instead of naive full-head formula. |
+| Qwen `kv_formula_type=gqa_mqa` | README, docs/00-06 | `results/rtx5060_qwen25_15b_sanity.csv` | Yes | All sanity rows agree. |
+| Qwen dynamic `kv_actual_over_theory=1.0` | README, docs/01-06 | `results/rtx5060_qwen25_15b_sanity.csv` | Yes | CSV value is `1.000000`; docs round to `1.0`. |
+| Qwen dynamic boundary file has 24 rows | docs/00 | `results/rtx5060_qwen25_15b_dynamic_boundary.csv` | Yes | 4 batch sizes x 6 sequence lengths. |
+| Qwen dynamic OOM at `batch=8`, `seq_len=12288` and `16384` | README, docs/01-06 | `results/rtx5060_qwen25_15b_dynamic_boundary.csv` | Yes | Both rows have `status=OOM` and `oom=True`. |
+| Qwen dynamic `batch=8`, `seq_len=8192` is OK | docs/05 | `results/rtx5060_qwen25_15b_dynamic_boundary.csv` | Yes | Row has `status=OK` and `oom=False`. |
+| Qwen quantized rescues `8x12288` and `8x16384` | README, docs/01-06 | `results/rtx5060_qwen25_15b_rescue_cases.csv` | Yes | Both quantized rows have `status=OK` and `oom=False`. |
+| Qwen quantized `kv_actual_over_theory` is 0.288737 and 0.286865 | README, docs/01, docs/03, docs/06 | `results/rtx5060_qwen25_15b_rescue_cases.csv` | Yes | Interpreted only as KV tensor footprint ratio, not total CUDA memory reduction. |
+| OPT dynamic boundary file has 20 rows | docs/00, docs/01 | `results/rtx5060_opt13b_dynamic_boundary.csv` | Yes | 4 batch sizes x 5 sequence lengths. |
+| OPT dynamic OOM at `4x8192`, `8x4096`, `8x6144`, `8x8192` | README, docs/01, docs/03 | `results/rtx5060_opt13b_dynamic_boundary.csv` | Yes | OPT CSV has no `oom` column; consistency checked by `status=OOM`. |
+| OPT quantized OK at `4x8192` and `8x4096` | README, docs/01, docs/03 | `results/rtx5060_opt13b_rescue_cases.csv` | Yes | Both rows have `status=OK`. |
+| OPT quantized OOM at `8x6144` and `8x8192` | README, docs/01, docs/03 | `results/rtx5060_opt13b_rescue_cases.csv` | Yes | Both rows have `status=OOM`. |
+| Offloaded RTX 5060 attempt hit 15 GiB RAM / no swap host-memory pressure | README, docs/01-04 | `README.md` | Partially | README records this limitation; no valid offloaded result row exists in the inspected result CSVs. |
+| RTX 5080 OPT-6.7B original peak 15806 MiB and Oaken eval peak 15826 MiB | docs/01 | `results/rtx5080/opt-6.7b/summary.md` | Yes | This is repo-backed 5080 OPT evidence, not Qwen cache-policy evidence. |
+| Prior-note RTX 5080 Qwen `80 total / 76 OK / 4 OOM` and throughput ratios | docs/00, docs/01 | Not found in this repository | Not claimed | Docs explicitly mark these as missing from `/home/ssu/oaken`. |
 
-| Risk | Status |
-| --- | --- |
-| Full Oaken reproduction overclaim | Avoided. Docs use "Oaken-inspired" and explicitly say not full reproduction. |
-| Universal quantization improvement | Avoided. Docs frame quantized cache as memory-throughput trade-off. |
-| Offloading as complete solution | Avoided. Docs frame offloading as GPU/host/transfer trade-off. |
-| no_cache as practical serving method | Avoided. Docs call no_cache ablation/lower-bound. |
+## 2. Terminology check
 
-## 3. Missing Evidence
+| Risk area | Check result |
+|---|---|
+| Full Oaken reproduction | The docs use "Oaken-inspired" or explicitly say this is not full paper reproduction. |
+| Universal quantization improvement | The docs frame quantized cache as a memory-capacity trade-off and explicitly reject universal speedup claims. |
+| Offloading as complete solution | The docs describe offloading as a trade-off that may move pressure to host memory and transfer overhead. |
+| no_cache as practical serving method | The docs consistently call `no_cache` a lower-bound / ablation, not a practical serving policy. |
+| Total memory reduction overclaim | Qwen 0.288737 / 0.286865 is described as KV-cache tensor footprint ratio, not total CUDA peak memory reduction. |
+| OPT long-context overclaim | OPT >2048 sequence results are described as memory stress evidence, while Qwen is used for position-valid long-context evidence. |
 
-- `results/rtx5060_opt13b_dynamic_boundary.csv`: missing.
-- `results/rtx5060_opt13b_rescue_cases.csv`: missing.
-- `results/rtx5060_qwen25_15b_dynamic_boundary.csv`: missing.
-- `results/rtx5060_qwen25_15b_rescue_cases.csv`: missing.
-- `results/plots_rtx5060_combined/dynamic_oom_rescue_cases.csv`: missing.
-- Qwen `position_valid=True`, `max_position_embeddings=32768` are not currently file-backed in a result CSV in `oaken`.
+## 3. Missing evidence
 
-## 4. Fixes Applied
+1. RTX 5080 Qwen cache-policy sweep CSV is not present under this repository, so the prior-note `80 total / 76 OK / 4 OOM` and ratio claims are not used as file-backed claims.
+2. Qwen quality, perplexity, or accuracy degradation under quantized cache is not measured in the inspected files.
+3. Prefill and decode latency are not separated in the inspected sweep outputs.
+4. A valid RTX 5060 offloaded rescue CSV row is missing; the repository only supports a host-memory limitation statement through `README.md`.
+5. Transfer overhead / PCIe bandwidth measurements for offloading are not present.
+6. Exact environment lockfile or complete package version manifest was not found in the inspected docs/results.
 
-- Created `AGENTS.md` to prevent overclaiming and require file-backed numbers.
-- Created docs using only file-backed strong claims.
-- Weakened RTX 5060 OPT/Qwen rescue claims to "not found in repository" / "확인 필요".
-- Separated Oaken artifact accuracy/VRAM results from HF Qwen cache-mode sweep results.
+## 4. Fixes applied
 
-## 5. Final Confidence
+No additional wording fixes were required after the consistency pass. The generated docs already weaken unsupported prior-note RTX 5080 Qwen numbers and avoid unsupported claims about Oaken reproduction, universal quantization speedup, offloading, and `no_cache`.
+
+## 5. Final confidence
 
 **MOSTLY READY**
 
-한국어 설명: RTX 5080 Qwen cache-mode 결과와 Oaken artifact summary는 파일 근거가 있어 발표에 사용할 수 있습니다. 다만 사용자가 가장 강조하고 싶은 RTX 5060 dynamic OOM/rescue와 Qwen position-valid rescue 결과는 현재 저장소 CSV로 확인되지 않았습니다. 따라서 내일 발표는 "5080 file-backed evidence + 5060 rescue future work/확인 필요" 프레임으로 가면 방어 가능하지만, 5060 rescue를 핵심 성과로 말하려면 수동으로 CSV를 확보해야 합니다.
+RTX 5060 Qwen position-valid dynamic OOM / quantized rescue evidence is strong and file-backed. RTX 5060 OPT memory-stress evidence is also consistent with the CSVs. The remaining manual-check risk is the missing repository-backed RTX 5080 Qwen cross-GPU sweep and the absence of quality/perplexity and detailed latency evidence.

@@ -89,8 +89,8 @@ Important output files that may exist:
 - results/oom_cases.csv
 - results/dynamic_oom_rescue_cases.csv
 - README.md
-- scripts/run_kv_cache_sweep.py
-- scripts/plot_kv_cache_sweep.py
+- oaken/scripts/run_kv_cache_sweep.py
+- oaken/scripts/plot_kv_cache_sweep.py
 
 ## Style for presentation
 

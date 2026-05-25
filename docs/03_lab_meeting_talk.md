@@ -5,152 +5,169 @@
 **Title:** Consumer GPU 환경에서 LLM inference KV-cache memory pressure 관찰  
 **Subtitle:** RTX 5060/5080 기반 dynamic / quantized / offloaded / no_cache 비교
 
-- Oaken-inspired 실험
-- Consumer GPU VRAM pressure 관찰
-- 실패 case까지 결과로 기록
+- Oaken-inspired KV-cache memory-pressure experiment
+- RTX 5060 8GB 중심 boundary/rescue 관찰
+- RTX 5080은 현재 repo에서 OPT Oaken-style boundary evidence만 존재
 
-**Script:** 오늘 발표에서는 제가 Oaken 논문을 동기로 삼아 진행한 KV-cache memory pressure 실험을 공유드리겠습니다. 핵심은 Oaken을 완전히 재현했다는 주장이 아니라, LLM inference에서 KV-cache가 실제 GPU VRAM boundary를 어떻게 만드는지 consumer GPU에서 직접 계측해 본 것입니다.
+**Spoken script:**  
+오늘 발표는 큰 모델을 새로 학습했다는 이야기가 아니라, LLM inference에서 실제 GPU memory가 어디서 한계가 되는지 계측한 실험입니다. Oaken 논문을 동기로 삼았지만 full reproduction은 아니고, dynamic, quantized, offloaded, no_cache 같은 cache policy가 consumer GPU에서 어떤 trade-off를 만드는지 보았습니다. 특히 RTX 5060 8GB에서 Qwen2.5-1.5B의 position-valid long-context 조건에서 dynamic OOM과 quantized rescue를 확인했습니다.
 
-**Possible question:** Oaken reproduction인가요?  
-**Answer:** 아닙니다. Oaken-inspired artifact/benchmark 성격이며 full hardware throughput reproduction은 아닙니다.
+**Possible question:** Oaken 재현인가요?  
+**Short answer:** 아닙니다. Oaken-inspired memory-pressure experiment로 범위를 제한합니다.
 
 ## Slide 2. Motivation
 
-- LLM inference는 compute-bound만이 아님
-- Long context에서 KV-cache memory 증가
-- Batch 증가도 memory pressure 증가
-- Consumer GPU는 capacity boundary가 빨리 드러남
+- LLM inference는 compute-bound만이 아니라 memory-capacity/bandwidth-bound가 될 수 있음
+- KV-cache는 context length와 batch size에 따라 증가
+- Consumer GPU에서는 VRAM limit이 빨리 드러남
+- Cache compression/offloading은 serving feasibility와 직결됨
 
-**Script:** LLM inference에서는 attention 계산 자체도 중요하지만, 실제 serving에서는 KV-cache를 저장하고 읽는 memory cost가 커집니다. 특히 context length와 batch size가 커지면 VRAM pressure가 커지고, consumer GPU에서는 OOM boundary가 비교적 빨리 드러납니다.
+**Spoken script:**  
+Autoregressive LLM inference에서는 이전 token의 key/value를 저장해야 합니다. 이 cache가 없으면 매번 과거 context를 다시 계산해야 하므로 비효율적이지만, cache를 저장하면 sequence length와 batch size가 커질수록 memory pressure가 커집니다. Consumer GPU는 VRAM이 제한되어 있기 때문에, long-context serving이나 큰 batch에서 먼저 boundary가 드러납니다. 그래서 cache quantization이나 offloading이 단순 최적화가 아니라 feasible region을 넓히는 방법인지 확인하고 싶었습니다.
 
-**Possible question:** 왜 consumer GPU인가요?  
-**Answer:** production GPU는 아니지만 제한된 자원에서 병목이 명확히 드러나 resource-aware serving 질문을 보기 좋습니다.
+**Possible question:** 너무 당연한 linear growth 아닌가요?  
+**Short answer:** Linear growth 자체는 예상 가능하지만, 어느 조건에서 실제 GPU OOM이 나고 어떤 policy가 rescue하는지는 계측해야 합니다.
 
 ## Slide 3. Background: KV-cache
 
-- Autoregressive decoding에서 이전 token K/V 재사용
-- Layer마다 key/value tensor 저장
-- 재계산을 줄이지만 memory는 누적
-- 이론적으로 batch와 sequence length에 선형 증가
+- Autoregressive decoding은 token을 순차 생성
+- 각 layer에서 key/value tensor를 저장
+- Cache는 과거 token 재계산을 줄임
+- 저장량은 token 수와 batch 수에 선형 증가
 
-**Script:** KV-cache는 이전 token의 key/value projection을 저장해 다음 token 생성 시 재사용하는 구조입니다. 이 덕분에 매번 과거 전체를 재계산하지 않아도 되지만, layer별로 key와 value를 저장하므로 context와 batch가 커질수록 memory footprint가 커집니다.
+**Spoken script:**  
+KV-cache는 transformer attention에서 이전 token들의 key와 value를 저장하는 구조입니다. 다음 token을 만들 때 이전 token 전체를 다시 forward하지 않고 저장된 key/value를 재사용합니다. 그래서 latency에는 유리하지만, layer 수, batch size, sequence length, key/value head 수에 비례해 memory가 증가합니다. 이 실험에서는 실제 `past_key_values` tensor footprint가 이론식과 맞는지 먼저 확인했습니다.
 
-**Possible question:** 이건 너무 당연한 결과 아닌가요?  
-**Answer:** 선형 증가는 당연합니다. 그래서 실험의 초점은 증가 자체가 아니라 실제 OOM boundary와 cache policy trade-off입니다.
+**Possible question:** 왜 hidden size만 쓰면 안 되나요?  
+**Short answer:** GQA/MQA 모델은 key/value head 수가 query head 수보다 작아서 KV head 기준으로 계산해야 합니다.
 
 ## Slide 4. Experimental Questions
 
-1. Theory vs actual size
-2. OOM boundary
-3. Quantized rescue
-4. Offloading/no_cache trade-off
+1. Theory vs actual KV-cache size가 맞는가?
+2. OOM boundary는 어디서 발생하는가?
+3. Quantized cache가 dynamic OOM을 rescue하는가?
+4. Offloading/no_cache는 어떤 trade-off인가?
 
-**Script:** 실험 질문은 네 가지입니다. 계산한 KV-cache 크기가 실제 tensor 크기와 맞는지, 어느 batch/sequence에서 OOM이 나는지, quantized cache가 실패 case를 살릴 수 있는지, 그리고 offloading/no_cache가 실용적인 대안인지 확인하는 것입니다.
+**Spoken script:**  
+질문은 네 가지였습니다. 첫째, 이론식과 실제 `past_key_values` 크기가 맞는지 sanity check를 합니다. 둘째, batch와 sequence를 키울 때 OOM boundary를 찾습니다. 셋째, dynamic이 실패한 조건만 quantized로 다시 돌려 rescue가 되는지 봅니다. 넷째, offloading과 no_cache는 memory를 줄일 수 있지만 다른 병목을 만드는지 구분합니다.
 
-**Possible question:** 품질 평가는 있나요?  
-**Answer:** HF cache-mode sweep에는 품질 평가가 없습니다. Oaken artifact 쪽에는 Wikitext PPL summary가 있습니다.
+**Possible question:** 왜 처음부터 모든 모드를 다 돌리지 않았나요?  
+**Short answer:** 먼저 dynamic boundary를 찾아야 rescue 실험의 의미가 생기기 때문입니다.
 
 ## Slide 5. Method
 
-- Models: OPT 계열, Qwen2.5-1.5B
-- GPUs: RTX 5060, RTX 5080
-- Modes: dynamic, quantized, offloaded, no_cache
-- Metrics: status, OOM, peak memory, tokens/s, latency, actual/theory KV
+- Models: OPT-1.3B, Qwen2.5-1.5B-Instruct
+- GPU: RTX 5060 8GB; RTX 5080 OPT summaries
+- Metrics: status, OOM, peak memory, throughput, KV theory/actual
+- Output: CSV, derived OOM/rescue CSV, plots
+- Sanity: Qwen `position_valid=True`, `kv_formula_type=gqa_mqa`
 
-**Script:** 파일로 확인 가능한 주요 결과는 두 종류입니다. `results/oaken_consumer_gpu_summary.csv`는 Oaken artifact accuracy/VRAM 결과이고, `/home/ssu/kv_cache_consumer_gpu_bench/results/results_5080_qwen25_1p5b.csv`는 RTX 5080 Qwen2.5 cache-mode sweep입니다.
+**Spoken script:**  
+OPT-1.3B는 memory stress test로 사용했고, Qwen2.5-1.5B는 32768 context를 지원하는 position-valid long-context 모델로 사용했습니다. Sweep script는 chunked cache-growth 방식으로 cache를 늘리며 OOM을 찾고, 결과를 CSV로 저장합니다. Qwen에서는 `position_valid`, `max_position_embeddings`, `kv_formula_type`, `kv_actual_over_theory`를 기록해 GQA 공식이 맞는지 확인했습니다. 결과는 `results/rtx5060_qwen25_15b_*`와 plot directory에 남아 있습니다.
 
-**Possible question:** RTX 5060 Qwen 결과는 있나요?  
-**Answer:** 현재 저장소에서 해당 CSV는 발견되지 않았습니다. 발표에서는 future work로 분리하겠습니다.
+**Possible question:** OPT 8192 결과는 정상 long-context인가요?  
+**Short answer:** 아닙니다. OPT 결과는 memory stress evidence이고, 정상 long-context 해석은 Qwen 결과가 담당합니다.
 
 ## Slide 6. Results: Theory vs Actual
 
-- RTX 5080 Qwen 성공 row에서 actual/theory 일치
-- `kv_actual_over_theory=1.0`
-- GQA 모델은 KV head 기준으로 계산
+- Qwen dynamic sanity: `kv_actual_over_theory=1.0`
+- Qwen formula type: `gqa_mqa`
+- Qwen max positions: 32768
+- Source: `results/rtx5060_qwen25_15b_sanity.csv`
 
-**Script:** RTX 5080 Qwen2.5 결과에서는 성공한 row의 `kv_actual_over_theory`가 1.0으로 기록되어 있습니다. Qwen2.5는 `num_attention_heads=12`, `num_key_value_heads=2`인 GQA 구조라 KV head 기준 계산이 필요합니다.
+**Spoken script:**  
+Qwen sanity run에서 dynamic cache의 actual KV footprint가 theory와 일치했습니다. 특히 Qwen은 GQA 구조라 `num_key_value_heads=2`를 사용해야 하며, sanity CSV에 `kv_formula_type=gqa_mqa`로 기록되어 있습니다. 이 sanity check는 contribution이라기보다 이후 OOM boundary 해석이 KV-cache 기반이라는 것을 확인하는 단계입니다.
 
-**Possible question:** 왜 중요한가요?  
-**Answer:** 이 sanity check가 있어야 이후 memory pressure 해석이 단순 추정이 아니라 실제 tensor footprint와 연결됩니다.
+**Possible question:** quantized ratio가 1.0이 아닌 건 문제인가요?  
+**Short answer:** 아닙니다. quantized cache는 KV tensor representation이 달라지므로 FP16 theory보다 작아지는 것이 목적입니다.
 
 ## Slide 7. Results: OOM Boundary
 
-- RTX 5080 Qwen: 80 cases
-- 76 OK, 4 OOM
-- 모든 mode가 B=8, S=8192에서 OOM
+- OPT-1.3B dynamic OOM: `4x8192`, `8x4096`, `8x6144`, `8x8192`
+- Qwen dynamic OOM: `8x12288`, `8x16384`
+- Qwen rows are `position_valid=True`
+- Source: `results/rtx5060_opt13b_dynamic_boundary.csv`, `results/rtx5060_qwen25_15b_dynamic_boundary.csv`
 
-**Script:** RTX 5080 Qwen2.5 sweep은 80개 case 중 76개가 성공했고 4개가 OOM입니다. OOM은 dynamic, quantized, offloaded, no_cache 모두 `batch_size=8`, `seq_len=8192`에서 발생했습니다.
+**Spoken script:**  
+OPT-1.3B에서는 position limit 밖까지 밀어붙인 memory stress test에서 dynamic OOM boundary를 관찰했습니다. 더 중요한 Qwen 결과에서는 모델이 지원하는 context 범위 안에서 `batch=8`, `seq_len=12288`와 `16384`가 dynamic OOM이었습니다. 이 차이가 중요합니다. OPT는 stress evidence이고, Qwen은 real long-context evidence로 방어할 수 있습니다.
 
-**Possible question:** quantized도 OOM이면 의미가 없나요?  
-**Answer:** 이 boundary에서는 rescue하지 못했습니다. 다만 non-OOM 영역에서 memory-throughput trade-off는 관찰됩니다.
+**Possible question:** Qwen 32768까지는 왜 안 갔나요?  
+**Short answer:** 16384에서 이미 dynamic OOM과 quantized rescue가 나왔고, 우선 boundary/rescue evidence 확보를 목표로 했습니다.
 
 ## Slide 8. Results: Quantized Rescue
 
-- RTX 5080 최대 OOM case는 rescue 실패
-- Quantized throughput ratio: 0.744150
-- Peak delta ratio: 0.786496
-- RTX 5060 rescue claim은 CSV 확보 필요
+- OPT quantized OK: `4x8192`, `8x4096`
+- OPT quantized OOM: `8x6144`, `8x8192`
+- Qwen quantized OK: `8x12288`, `8x16384`
+- Qwen quantized KV footprint ratio: 0.288737, 0.286865
 
-**Script:** RTX 5080 결과에서 quantized는 dynamic 대비 평균 throughput이 0.744150, peak memory delta가 0.786496입니다. 하지만 가장 큰 OOM case인 B=8, S=8192는 quantized도 OOM이었습니다. 5060 rescue 주장은 현재 파일이 없어 확인 필요로 남깁니다.
+**Spoken script:**  
+Rescue 실험은 dynamic에서 실패한 조건만 다시 돌렸습니다. OPT에서는 일부 조건이 quantized로 살아났지만 더 큰 조건은 여전히 OOM이었습니다. Qwen에서는 dynamic OOM이던 두 position-valid 조건이 quantized로 모두 성공했습니다. 다만 0.287이라는 ratio는 KV-cache tensor footprint가 FP16 theory 대비 줄었다는 뜻이지 total CUDA peak memory가 같은 비율로 줄었다는 뜻은 아닙니다.
 
-**Possible question:** 발표에서 rescue라고 말해도 되나요?  
-**Answer:** RTX 5080 파일 기준으로는 rescue라고 말하면 안 됩니다. 5060 CSV 확보 후에만 말할 수 있습니다.
+**Possible question:** quantized가 더 빠른가요?  
+**Short answer:** 이 실험에서는 speedup claim을 하지 않습니다. 핵심은 memory-capacity rescue입니다.
 
 ## Slide 9. Results: Offloading and no_cache
 
-- Offloaded throughput ratio: 0.594451
-- no_cache throughput ratio: 0.093942
-- no_cache는 ablation/lower-bound
+- Offloading: GPU VRAM pressure를 host memory/transfer로 옮길 수 있음
+- RTX 5060 offloaded attempt: host RAM pressure, no valid row
+- no_cache: lower-bound / ablation only
+- Source: `README.md`, `results/rtx5060_*_rescue_cases.csv`
 
-**Script:** Offloaded는 peak memory delta를 줄였지만 dynamic 대비 throughput ratio가 0.594451로 낮았습니다. no_cache는 0.093942로 throughput이 크게 무너져 practical policy보다는 ablation으로 해석하는 것이 맞습니다.
+**Spoken script:**  
+Offloading은 GPU memory를 아낄 수 있지만 공짜가 아닙니다. 이번 RTX 5060 환경은 system RAM이 작고 swap이 없어 offloaded run이 host memory pressure로 유효 row 없이 실패했습니다. no_cache는 cache memory를 줄이는 lower-bound로 볼 수 있지만, 실제 generation에서는 과거 context 재계산이 필요하므로 practical serving solution이라고 말하면 안 됩니다.
 
-**Possible question:** offloading은 실패인가요?  
-**Answer:** 실패라기보다 trade-off입니다. GPU memory를 줄이는 대신 transfer/host-side cost를 감수합니다.
+**Possible question:** no_cache throughput이 높게 보이는 row가 있는데요?  
+**Short answer:** 현재 chunked memory sweep의 처리량이고, autoregressive decode serving의 재계산 비용을 대표하지 않습니다.
 
 ## Slide 10. Interpretation
 
-1. KV-cache formula는 pressure 예측에 유용
-2. Quantization은 universal fix가 아님
-3. Serving은 GPU/host/transfer/throughput을 함께 봐야 함
+1. KV-cache formula is useful for predicting pressure.
+2. Quantization helps at some boundary cases but is not universal.
+3. Serving systems need GPU memory, host memory, transfer, throughput together.
 
-**Script:** 결론적으로 KV-cache 이론식은 실제 footprint sanity check에 유용했고, cache quantization/offloading은 속도 향상이라기보다 feasible region을 넓히기 위한 capacity technique으로 보는 것이 안전합니다.
+**Spoken script:**  
+결론은 세 가지입니다. 첫째, KV-cache 이론식과 actual footprint가 맞는지 확인하면 boundary 해석이 훨씬 방어 가능해집니다. 둘째, quantized cache는 일부 OOM 조건을 rescue하지만 모든 조건을 해결하는 universal fix가 아닙니다. 셋째, serving system에서는 GPU VRAM만 볼 것이 아니라 host memory, transfer overhead, throughput까지 같이 봐야 합니다.
 
-**Possible question:** 그래서 연구적으로 무엇이 남나요?  
-**Answer:** 더 엄밀한 prefill/decode 분리, model 다양화, quality 영향 측정, 그리고 scheduler/policy 관점 확장이 남습니다.
+**Possible question:** 연구적으로 새로운 점은 무엇인가요?  
+**Short answer:** 새로운 알고리즘 제안은 아니고, consumer GPU에서 file-backed boundary/rescue evidence를 정리한 systems preparation입니다.
 
 ## Slide 11. Limitations
 
-- Full Oaken reproduction 아님
-- RTX 5060 Qwen rescue CSV 없음
-- 품질/perplexity는 HF sweep에 없음
-- prefill/decode 분리 부족
-- offloading은 host 환경 영향 큼
+- Limited models and hardware
+- Not full Oaken reproduction
+- Qwen quality/perplexity not measured
+- Prefill vs decode not separated
+- Offloading affected by host RAM/no swap
 
-**Script:** 이 실험은 아직 제한이 많습니다. 특히 Oaken full reproduction이 아니고, RTX 5060 Qwen rescue 결과는 현재 파일 근거가 없습니다. 따라서 발표에서는 측정한 것과 아직 측정하지 못한 것을 명확히 분리하겠습니다.
+**Spoken script:**  
+한계는 명확합니다. 모델과 hardware가 제한적이고, Oaken full reproduction이 아닙니다. Qwen sweep은 memory-focused synthetic token 실험이라 quality나 perplexity를 포함하지 않습니다. 또한 prefill과 decode latency를 분리하지 않았고, offloading 결과는 host RAM/no swap 환경에 영향을 받았습니다. 이 점을 먼저 인정하는 것이 안전하다고 봅니다.
 
-**Possible question:** 가장 큰 약점은?  
-**Answer:** 5060 long-context rescue 결과가 file-backed artifact로 정리되지 않은 점입니다.
+**Possible question:** 품질 저하를 보지 않았으면 실용성이 부족하지 않나요?  
+**Short answer:** 맞습니다. 현재는 memory feasibility 실험이고, 다음 단계에서 quality/perplexity를 붙여야 합니다.
 
 ## Slide 12. Next Steps
 
-- RTX 5060 Qwen CSV 확보
-- fixed generation length
-- prefill/decode 분리
-- quality metric 추가
-- 환경 문서화
+- RTX 5080 Qwen cross-GPU sweep
+- 5060 OOM 조건이 5080에서 dynamic OK인지 확인
+- 5080 자체 boundary 탐색
+- Prefill/decode 분리, token latency distribution
+- 환경/스크립트 재현성 정리
 
-**Script:** 다음 단계는 Qwen2.5를 사용해 position-valid long-context 조건에서 RTX 5060 dynamic boundary와 quantized rescue를 CSV로 남기는 것입니다. 그 다음 fixed decode length와 quality metric을 추가하겠습니다.
+**Spoken script:**  
+다음 단계는 같은 Qwen2.5-1.5B 실험을 RTX 5080에서 반복하는 것입니다. 5060에서 dynamic OOM이던 `8x12288`, `8x16384`가 5080에서 살아나는지 보면 VRAM capacity scaling을 보여줄 수 있습니다. 이후 더 큰 batch/sequence에서 5080 자체 boundary를 찾고, quantized rescue가 반복되는지 확인하겠습니다.
 
-**Possible question:** 내일까지 가능한 것은?  
-**Answer:** 현재 파일 기반 발표는 가능하고, 5060 Qwen 수치는 확보 전까지 future work로 두는 것이 안전합니다.
+**Possible question:** 왜 5080이 필요한가요?  
+**Short answer:** 같은 모델/조건에서 GPU memory capacity가 feasible region을 어떻게 이동시키는지 볼 수 있기 때문입니다.
 
 ## Slide 13. Closing
 
-- 실험의 핵심은 거대 모델 학습이 아님
-- 실제 시스템 병목 가설화/계측/실패 정리
-- KAIRI/연구실에서 방법론 발전 희망
+- 핵심은 큰 모델 학습이 아니라 병목의 가설화/계측/정리
+- 실패 케이스까지 기록
+- KAIRI/연구실에서는 더 엄밀한 methodology를 배우고 싶음
 
-**Script:** 제가 이 실험에서 보여주고 싶은 것은 거대한 모델을 학습했다는 것이 아니라, LLM inference에서 실제 시스템 병목을 가설화하고, 계측하고, 실패 케이스까지 정리하는 방식입니다. 앞으로는 이런 실험을 더 재현 가능하고 연구 질문이 분명한 형태로 발전시키고 싶습니다.
+**Spoken script:**  
+제가 이 실험에서 보여주고 싶은 것은 거대한 모델을 학습했다는 것이 아니라, LLM inference에서 실제 시스템 병목을 가설화하고, 계측하고, 실패 케이스까지 정리하는 방식입니다. 현재 결과는 작은 consumer GPU 실험이지만, long-context serving과 resource-aware inference라는 더 큰 AI systems 문제로 연결된다고 생각합니다.
 
-**Possible question:** 한 문장으로 기여를 말하면?  
-**Answer:** Consumer GPU에서 KV-cache memory pressure와 cache policy trade-off를 파일 기반으로 계측하고, 과장 없이 한계까지 정리한 준비 실험입니다.
+**Possible question:** 이걸 어떻게 연구로 확장할 건가요?  
+**Short answer:** 더 다양한 GPU/model에서 boundary를 계측하고, scheduling/cache policy와 quality/latency까지 포함한 reproducible benchmark로 확장하고 싶습니다.

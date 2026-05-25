@@ -2,107 +2,104 @@
 
 ## 1. 한 문장 요약
 
-이 실험은 Oaken-inspired 관점에서 consumer GPU의 LLM inference가 batch size와 sequence length 증가에 따라 KV-cache memory pressure와 OOM boundary를 어떻게 만나는지, 그리고 cache mode가 어떤 trade-off를 만드는지 로컬 artifact로 확인한 작업이다.
+이 실험은 consumer GPU에서 LLM inference KV-cache가 batch size와 sequence length 증가에 따라 VRAM boundary를 만들고, 일부 dynamic OOM 조건을 quantized cache가 rescue할 수 있음을 파일 기반으로 확인한 Oaken-inspired KV-cache memory-pressure 실험이다.
 
 ## 2. 실험 동기
 
-Autoregressive LLM inference에서는 이전 token의 key/value tensor를 layer별로 저장해 다음 token 계산에서 재사용한다. 이 KV-cache는 sequence length가 길어질수록 선형으로 커지고, batch size가 커져도 선형으로 증가한다. Consumer GPU는 VRAM 여유가 제한적이므로 long-context 또는 larger-batch serving에서 cache가 memory-capacity pressure를 빠르게 만든다. 따라서 dynamic, quantized, offloaded, no_cache 같은 cache strategy는 단순 속도 옵션이 아니라 memory와 throughput/latency 사이의 trade-off로 해석해야 한다.
+LLM autoregressive inference는 이전 token의 key/value tensor를 layer별로 저장한다. Sequence length가 길어지면 저장해야 할 token 수가 늘기 때문에 KV-cache memory가 선형적으로 증가한다. Batch size가 커져도 batch마다 KV-cache가 필요하므로 memory가 다시 선형적으로 증가한다. Consumer GPU는 VRAM capacity가 제한되어 있어 long-context와 larger batch 조건에서 OOM boundary가 빠르게 나타날 수 있다. Dynamic, quantized, offloaded, no_cache 같은 cache strategy는 throughput/latency와 memory capacity 사이의 trade-off를 만든다.
 
 ## 3. 실험 질문
 
 1. 이론적 KV-cache 크기와 실제 `past_key_values` 크기가 일치하는가?
-2. batch size와 sequence length가 커질 때 OOM boundary는 어디서 발생하는가?
-3. quantized cache가 dynamic cache의 OOM case를 rescue할 수 있는가?
-4. offloading은 GPU VRAM 문제를 해결하는가, 아니면 host memory/transfer 병목을 새로 만드는가?
+2. Batch size와 sequence length가 커질 때 OOM boundary는 어디서 발생하는가?
+3. Quantized cache가 dynamic cache의 OOM case를 rescue할 수 있는가?
+4. Offloading은 GPU VRAM 문제를 해결하는가, 아니면 host memory/transfer 병목을 새로 만드는가?
 5. no_cache는 어떤 lower-bound / ablation 의미를 가지는가?
 
 ## 4. 실험 환경
 
-| Item | File-backed value |
-| --- | --- |
-| RTX 5080 Qwen GPU | NVIDIA GeForce RTX 5080 (`/home/ssu/kv_cache_consumer_gpu_bench/results/results_5080_qwen25_1p5b.csv`) |
-| RTX 5080 Qwen model | `Qwen/Qwen2.5-1.5B-Instruct` (`/home/ssu/kv_cache_consumer_gpu_bench/results/results_5080_qwen25_1p5b.csv`) |
-| RTX 5080 Qwen dtype | fp16 (`/home/ssu/kv_cache_consumer_gpu_bench/results/results_5080_qwen25_1p5b.csv`) |
-| RTX 5080 Qwen cache modes | dynamic, quantized, offloaded, no_cache (`/home/ssu/kv_cache_consumer_gpu_bench/results/results_5080_qwen25_1p5b.csv`) |
-| RTX 5080 Qwen batch sizes | 1, 2, 4, 8 (`/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_qwen25_analysis.md`) |
-| RTX 5080 Qwen sequence lengths | 512, 1024, 2048, 4096, 8192 (`/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_qwen25_analysis.md`) |
-| Oaken artifact GPUs | RTX 5060 and RTX 5080 (`results/oaken_consumer_gpu_summary.csv`) |
-| Software stack | repository에서 확인 필요; 일부 local run에서 Transformers/PyTorch 환경은 command output에만 있음. |
+| 항목 | repo-backed 값 | 근거 파일 |
+| --- | --- | --- |
+| RTX 5060 GPU label | `rtx5060-8gb` | `results/rtx5060_qwen25_15b_dynamic_boundary.csv` |
+| 실제 감지 GPU | `NVIDIA GeForce RTX 5060` | `results/rtx5060_qwen25_15b_dynamic_boundary.csv` |
+| Qwen model | `/home/ssu/models/Qwen2.5-1.5B-Instruct` | `results/rtx5060_qwen25_15b_sanity.csv` |
+| Qwen precision | `fp16` | `results/rtx5060_qwen25_15b_sanity.csv` |
+| Qwen cache modes | dynamic, quantized, no_cache | `results/rtx5060_qwen25_15b_combined.csv` |
+| Qwen dynamic batch sizes | 1, 2, 4, 8 | `results/rtx5060_qwen25_15b_dynamic_boundary.csv` |
+| Qwen dynamic sequence lengths | 1024, 2048, 4096, 8192, 12288, 16384 | `results/rtx5060_qwen25_15b_dynamic_boundary.csv` |
+| OPT-1.3B model | `facebook/opt-1.3b` | `results/rtx5060_opt13b_dynamic_boundary.csv` |
+| OPT-1.3B cache modes | dynamic, quantized, no_cache | `results/rtx5060_opt13b_combined.csv` |
+| Software stack | PyTorch 2.12.0+cu130, Transformers 5.8.1 | `README.md` |
+| RTX 5080 Oaken-style evidence | OPT-1.3B, OPT-2.7B OK; OPT-6.7B boundary | `results/oaken_consumer_gpu_summary.csv` |
 
 ## 5. 이론식
 
-일반 MHA 모델의 단순 KV-cache 식:
+기본 MHA 모델의 FP16 KV-cache 이론식은 다음과 같이 둘 수 있다.
 
 ```text
 KV bytes = 2 * num_layers * batch_size * sequence_length * hidden_size * bytes_per_element
 ```
 
-GQA/MQA 모델에서는 full hidden size를 그대로 쓰면 안 되고, key/value head 수를 사용해야 한다.
-
-```text
-KV bytes = 2 * num_layers * batch_size * sequence_length * num_key_value_heads * head_dim * bytes_per_element
-```
-
-RTX 5080 Qwen2.5 CSV는 `num_attention_heads=12`, `num_key_value_heads=2`, `head_dim=128`을 기록한다 (`/home/ssu/kv_cache_consumer_gpu_bench/results/results_5080_qwen25_1p5b.csv`). 따라서 Qwen2.5 결과는 GQA/MQA-aware formula로 해석해야 한다.
+여기서 `2`는 key와 value를 의미한다. 다만 GQA/MQA 모델에서는 full attention head 수를 그대로 쓰면 안 된다. Qwen2.5-1.5B sanity 결과는 `num_attention_heads=12`, `num_key_value_heads=2`, `head_dim=128`, `kv_formula_type=gqa_mqa`로 기록되어 있으며, 이 경우 KV-cache 공식은 key/value heads 기준으로 계산해야 한다 (`results/rtx5060_qwen25_15b_sanity.csv`).
 
 ## 6. RTX 5080 결과
 
-RTX 5080 Qwen2.5 sweep은 총 80 rows, 76 OK, 4 OOM을 기록했다 (`/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_status_count.csv`). OOM은 모든 cache mode에서 `batch_size=8`, `seq_len=8192`에서 발생했다 (`/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_oom_cases.csv`).
+현재 repo 안의 RTX 5080 evidence는 Qwen cache-policy sweep이 아니라 Oaken-style OPT result summary이다. `results/oaken_consumer_gpu_summary.csv`에는 RTX 5080 OPT-1.3B와 OPT-2.7B가 `OK`, RTX 5080 OPT-6.7B가 `Boundary`로 기록되어 있다. `results/rtx5080/opt-6.7b/summary.md`는 original FP16 eval과 profiling은 성공했지만 Oaken eval이 OOM이라고 기록한다. 같은 파일에서 original eval peak VRAM은 15806 MiB, Oaken eval peak VRAM은 15826 MiB이다.
 
-성공 row의 `kv_actual_over_theory`는 cache mode별 평균/최소/최대가 모두 1.0이었다 (`/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_qwen25_analysis.md`). Dynamic 대비 평균 throughput ratio는 quantized 0.744150, offloaded 0.594451, no_cache 0.093942였다 (`/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_ratios_vs_dynamic.csv`). Dynamic 대비 평균 peak memory delta ratio는 quantized 0.786496, offloaded 0.705081, no_cache 0.738751였다 (`/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_ratios_vs_dynamic.csv`).
-
-대표 long-context case `batch_size=4`, `seq_len=8192`에서 dynamic은 124.957829 tokens/s, quantized는 108.237820 tokens/s, offloaded는 45.451941 tokens/s, no_cache는 2.951665 tokens/s였다 (`/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_key_examples.csv`).
+Prior note의 `80 total / 76 OK / 4 OOM`, relative throughput, relative peak memory delta 숫자는 현재 `/home/ssu/oaken` repository 안에서 source CSV를 찾지 못했다. 따라서 이 문서에서는 그 숫자를 확정 claim으로 사용하지 않는다.
 
 ## 7. RTX 5060 OPT-1.3B 결과
 
-파일로 확인 가능한 RTX 5060 OPT-1.3B 결과는 Oaken artifact accuracy/VRAM summary다. `results/oaken_consumer_gpu_summary.csv`에 따르면 RTX 5060 OPT-1.3B는 original PPL 14.6406, Oaken PPL 15.3984, peak VRAM 4.49GB, status OK로 기록되어 있다.
+OPT-1.3B dynamic sweep은 `results/rtx5060_opt13b_dynamic_boundary.csv`에 20 rows로 기록되어 있고, dynamic OOM은 4건이다. OOM 조건은 `batch=4, seq_len=8192`, `batch=8, seq_len=4096`, `batch=8, seq_len=6144`, `batch=8, seq_len=8192`이다. Rescue file `results/rtx5060_opt13b_rescue_cases.csv`에는 quantized OK가 `batch=4, seq_len=8192`와 `batch=8, seq_len=4096`에서 기록되어 있다. 같은 rescue file에서 quantized OOM은 `batch=8, seq_len=6144`와 `batch=8, seq_len=8192`이다.
 
-사용자 메모에는 dynamic OOM과 quantized rescue case가 있으나, 현재 저장소에서 `results/rtx5060_opt13b_dynamic_boundary.csv`와 `results/rtx5060_opt13b_rescue_cases.csv`가 발견되지 않았다. 따라서 dynamic OOM/rescue 수치는 이 문서에서 강한 measured claim으로 쓰지 않는다.
+README는 offloaded cache가 15 GiB system RAM / no swap 환경에서 host memory pressure로 kernel OOM kill을 유발했다고 기록한다 (`README.md`). no_cache는 `results/rtx5060_opt13b_rescue_cases.csv`에는 OK로 기록되어 있지만, practical serving policy가 아니라 lower-bound / ablation으로 해석해야 한다.
 
 ## 8. RTX 5060 Qwen sanity 결과
 
-현재 저장소에는 RTX 5060 Qwen sanity/boundary/rescue CSV가 없다. `results/rtx5060_qwen25_15b_dynamic_boundary.csv`와 `results/rtx5060_qwen25_15b_rescue_cases.csv`는 not found in repository다.
+Qwen sanity file `results/rtx5060_qwen25_15b_sanity.csv`는 `position_valid=True`, `max_position_embeddings=32768`, `kv_formula_type=gqa_mqa`를 기록한다. Dynamic cache sanity rows에서 `kv_actual_over_theory=1.0`이다. Dynamic boundary file `results/rtx5060_qwen25_15b_dynamic_boundary.csv`는 `batch=8, seq_len=12288`와 `batch=8, seq_len=16384`에서 OOM을 기록한다. Rescue file `results/rtx5060_qwen25_15b_rescue_cases.csv`는 quantized cache가 두 조건 모두 OK임을 기록한다.
 
-Qwen2.5의 GQA 구조 자체는 RTX 5080 Qwen CSV에서 `num_attention_heads=12`, `num_key_value_heads=2`, `head_dim=128`로 확인된다 (`/home/ssu/kv_cache_consumer_gpu_bench/results/results_5080_qwen25_1p5b.csv`). 다만 `position_valid`, `max_position_embeddings=32768`, RTX 5060 dynamic OOM/rescue 결과는 현재 파일 근거가 없다.
+Quantized rescue row의 `kv_actual_over_theory`는 `8x12288`에서 0.288737, `8x16384`에서 0.286865이다 (`results/rtx5060_qwen25_15b_rescue_cases.csv`). 이 숫자는 measured KV-cache tensor footprint가 FP16 theoretical KV-cache size의 약 28.7%였다는 의미이지, total CUDA peak memory가 같은 비율로 줄었다는 의미가 아니다.
 
 ## 9. 핵심 해석
 
-- 이론식 vs 실제값: RTX 5080 Qwen2.5 성공 row에서 `kv_actual_over_theory=1.0`이므로 KV-cache tensor footprint 계산은 file-backed sanity check를 통과했다.
-- OOM boundary: RTX 5080 Qwen2.5에서는 모든 cache mode가 `batch_size=8`, `seq_len=8192`에서 OOM을 기록했다.
-- Quantized rescue: RTX 5080 Qwen2.5에서는 가장 큰 OOM case를 quantized도 rescue하지 못했다; RTX 5060 rescue 주장은 현재 CSV 근거가 없어 확인 필요다.
-- Offloading limitation: RTX 5080 Qwen2.5에서 offloaded는 memory delta를 낮췄지만 throughput ratio가 dynamic의 0.594451로 낮아졌다.
-- AI systems 의미: 이 실험은 model architecture 개선보다 serving에서 memory hierarchy, batching, context length, cache policy가 만드는 실제 병목을 계측하는 방향의 준비로 해석하는 것이 안전하다.
+- Theory vs actual: Qwen dynamic sanity와 boundary OK rows에서 `kv_actual_over_theory=1.0`이므로 GQA/MQA KV 공식이 실제 cache tensor footprint와 맞는지 확인했다 (`results/rtx5060_qwen25_15b_sanity.csv`).
+- OOM boundary: RTX 5060 Qwen dynamic sweep은 `batch=8, seq_len=12288/16384`에서 OOM을 보였다 (`results/rtx5060_qwen25_15b_dynamic_boundary.csv`).
+- Quantized rescue: Qwen quantized cache는 dynamic OOM이던 `8x12288`, `8x16384` 두 조건을 모두 OK로 rescue했다 (`results/rtx5060_qwen25_15b_rescue_cases.csv`).
+- Offloading limitation: README에는 offloaded run이 host RAM pressure 때문에 유효 row 없이 실패했다고 기록되어 있어, offloading은 GPU memory issue를 host memory/transfer issue로 옮길 수 있다 (`README.md`).
+- AI systems implication: 이 결과는 model architecture 자체가 아니라 long-context serving에서 GPU memory capacity, cache representation, host memory, throughput을 함께 고려해야 함을 보여준다.
 
 ## 10. 주장 강도 조절
 
-### What I measured
+### 측정한 것
 
-- RTX 5080 Qwen2.5 cache-mode sweep: 80 rows, 76 OK, 4 OOM (`/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_status_count.csv`).
-- RTX 5060/5080 Oaken artifact accuracy/VRAM summary (`results/oaken_consumer_gpu_summary.csv`).
+- RTX 5060에서 OPT-1.3B와 Qwen2.5-1.5B의 dynamic OOM boundary.
+- Qwen2.5-1.5B의 position-valid long-context 조건에서 quantized cache rescue.
+- Dynamic cache의 실제 KV tensor footprint와 이론식 일치.
 
-### What I did not measure
+### 측정하지 않은 것
 
-- Full Oaken hardware throughput reproduction.
-- RTX 5060 Qwen dynamic OOM/rescue result with local CSV evidence.
-- Quality/perplexity impact for HF Qwen cache-mode sweep.
-- Prefill and decode latency separated as independent distributions.
+- Oaken paper full reproduction.
+- 모든 모델/모든 GPU에서 quantized cache가 항상 유리하다는 일반 명제.
+- Qwen 5080 cross-GPU cache-policy sweep; 해당 CSV는 현재 repo에서 찾지 못했다.
+- 품질 degradation이나 perplexity 변화; Qwen boundary sweep은 random token 기반 memory sweep이다.
 
 ### Future work
 
-- Export RTX 5060 Qwen sanity/dynamic/rescue CSVs.
-- Add position-valid long-context analysis to the result table.
-- Separate prefill/decode and add fixed generation length controls.
+- RTX 5080에서 같은 Qwen sweep을 실행해 capacity scaling을 확인한다.
+- Prefill과 decode를 분리하고 token latency distribution을 측정한다.
+- Quality/perplexity metric을 붙여 memory rescue와 품질 trade-off를 함께 본다.
 
 ## 11. File-backed Evidence Table
 
 | Claim | Evidence file | Exact value | Confidence |
 | --- | --- | --- | --- |
-| RTX 5080 Qwen sweep row count | `/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_status_count.csv` | 76 OK, 4 OOM | HIGH |
-| RTX 5080 Qwen OOM boundary | `/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_oom_cases.csv` | all modes OOM at batch_size=8, seq_len=8192 | HIGH |
-| KV actual/theory check | `/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_qwen25_analysis.md` | mean/min/max 1.0 for each cache mode | HIGH |
-| Throughput ratio quantized | `/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_ratios_vs_dynamic.csv` | 0.744150 | HIGH |
-| Throughput ratio offloaded | `/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_ratios_vs_dynamic.csv` | 0.594451 | HIGH |
-| Throughput ratio no_cache | `/home/ssu/kv_cache_consumer_gpu_bench/analysis/rtx5080_ratios_vs_dynamic.csv` | 0.093942 | HIGH |
-| RTX 5060 OPT-1.3B Oaken PPL | `results/oaken_consumer_gpu_summary.csv` | 15.3984 | HIGH |
-| RTX 5060 OPT-1.3B dynamic OOM/rescue | not found in repository | not found in repository | LOW |
-| RTX 5060 Qwen dynamic OOM/rescue | not found in repository | not found in repository | LOW |
+| Qwen supports position-valid tested range | `results/rtx5060_qwen25_15b_sanity.csv` | `position_valid=True`, `max_position_embeddings=32768` | HIGH |
+| Qwen uses GQA/MQA formula | `results/rtx5060_qwen25_15b_sanity.csv` | `kv_formula_type=gqa_mqa`, `num_attention_heads=12`, `num_key_value_heads=2`, `head_dim=128` | HIGH |
+| Qwen dynamic theory/actual matches | `results/rtx5060_qwen25_15b_sanity.csv` | dynamic `kv_actual_over_theory=1.0` | HIGH |
+| Qwen dynamic OOM at 8x12288 and 8x16384 | `results/rtx5060_qwen25_15b_dynamic_boundary.csv` | OOM rows at `batch_size=8`, `seq_len=12288/16384` | HIGH |
+| Qwen quantized rescues both dynamic OOM cases | `results/rtx5060_qwen25_15b_rescue_cases.csv` | quantized OK at `8x12288`, `8x16384` | HIGH |
+| Qwen quantized KV footprint ratio | `results/rtx5060_qwen25_15b_rescue_cases.csv` | 0.288737 and 0.286865 | HIGH |
+| OPT dynamic OOM cases | `results/rtx5060_opt13b_dynamic_boundary.csv` | 4 OOM rows | HIGH |
+| OPT quantized rescue partial success | `results/rtx5060_opt13b_rescue_cases.csv` | quantized OK at `4x8192`, `8x4096`; OOM at `8x6144`, `8x8192` | HIGH |
+| Offloaded host-memory issue | `README.md` | 15 GiB RAM / no swap; offloaded runs killed before valid rows | MEDIUM |
+| RTX 5080 Qwen 80-row cache-policy result | not found in repository | not found in repository | LOW |
