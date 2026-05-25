@@ -81,6 +81,51 @@ Korean summary:
 - `results/plots_rtx5060_combined/oom_cases.csv`
 - `results/plots_rtx5060_combined/dynamic_oom_rescue_cases.csv`
 
+## Qwen2.5-1.5B Position-valid Long-context Result on RTX 5060 8GB
+
+To avoid over-interpreting the OPT-1.3B memory stress results beyond its position limit, I repeated the KV-cache boundary experiment with Qwen2.5-1.5B-Instruct. This model supports a 32,768-token context window and uses GQA with 12 query heads and 2 key/value heads.
+
+The sanity run verified that the sweep records the expected model metadata:
+
+- `position_valid=True`
+- `max_position_embeddings=32768`
+- `kv_formula_type=gqa_mqa`
+- `kv_actual_over_theory=1.0` for dynamic cache
+
+The dynamic KV-cache sweep found GPU OOM at:
+
+| batch_size | seq_len | dynamic |
+| ---: | ---: | --- |
+| 8 | 12288 | OOM |
+| 8 | 16384 | OOM |
+
+I then re-ran the failed configurations with quantized KV-cache. Quantized cache successfully rescued both dynamic OOM cases:
+
+| batch_size | seq_len | dynamic | quantized | quantized kv_actual_over_theory |
+| ---: | ---: | --- | --- | ---: |
+| 8 | 12288 | OOM | OK | 0.288737 |
+| 8 | 16384 | OOM | OK | 0.286865 |
+
+Quantized cache reduced the measured KV-cache tensor footprint to about 28.7% of the fp16 theoretical KV-cache size in the rescued cases. This should not be interpreted as the same reduction ratio for total CUDA peak memory, which also includes model weights, temporary buffers, activations, and allocator-reserved memory.
+
+This result shows that the dynamic OOM / quantized rescue pattern is not limited to synthetic OPT memory stress. It also appears in a position-valid long-context model. In this setting, KV-cache quantization is best interpreted as a memory-capacity optimization: it trades cache representation overhead and potential latency cost for a larger feasible long-context/batch execution region.
+
+Korean summary:
+
+이 프로젝트는 LLM 추론에서 KV-cache가 GPU 메모리 용량을 어떻게 압박하는지 실험적으로 분석했다. RTX 5060 8GB에서 Qwen2.5-1.5B-Instruct를 대상으로 batch=8, seq_len=12288/16384 조건에서 dynamic KV-cache는 OOM으로 실패했지만, quantized KV-cache는 두 조건을 모두 실행 가능하게 만들었다.
+
+Generated artifacts:
+
+- `results/rtx5060_qwen25_15b_sanity.csv`
+- `results/rtx5060_qwen25_15b_dynamic_boundary.csv`
+- `results/rtx5060_qwen25_15b_rescue_cases.csv`
+- `results/rtx5060_qwen25_15b_combined.csv`
+- `results/plots_rtx5060_qwen25_15b_combined/peak_memory_vs_seq_len.png`
+- `results/plots_rtx5060_qwen25_15b_combined/throughput_vs_peak_memory.png`
+- `results/plots_rtx5060_qwen25_15b_combined/status_boundary_matrix.csv`
+- `results/plots_rtx5060_qwen25_15b_combined/oom_cases.csv`
+- `results/plots_rtx5060_qwen25_15b_combined/dynamic_oom_rescue_cases.csv`
+
 ## 1. Preparing environments
 
 ### 1.1. Build Docker image

@@ -42,6 +42,18 @@ CSV_COLUMNS = [
     "peak_vram_used_mib",
     "final_vram_used_mib",
     "final_cache_seq_len",
+    "oom",
+    "position_valid",
+    "max_position_embeddings",
+    "num_hidden_layers",
+    "num_attention_heads",
+    "num_key_value_heads",
+    "head_dim",
+    "kv_formula_type",
+    "kv_theory_mb",
+    "kv_actual_mb",
+    "kv_actual_over_theory",
+    "peak_memory_mb",
     "theoretical_dynamic_kv_mib",
     "cache_tensor_total_mib",
     "cache_tensor_cuda_mib",
@@ -164,9 +176,53 @@ def monitor_vram(stop: threading.Event, samples: list[int], interval_s: float) -
 
 
 def theoretical_dynamic_kv_bytes(config: Any, batch_size: int, seq_len: int, dtype: torch.dtype) -> int:
-    layers = int(getattr(config, "num_hidden_layers"))
-    hidden = int(getattr(config, "hidden_size"))
-    return 2 * layers * batch_size * seq_len * hidden * dtype_bytes(dtype)
+    shape = kv_shape(config)
+    return (
+        2
+        * shape["num_hidden_layers"]
+        * batch_size
+        * seq_len
+        * shape["num_key_value_heads"]
+        * shape["head_dim"]
+        * dtype_bytes(dtype)
+    )
+
+
+def text_config(config: Any) -> Any:
+    if hasattr(config, "get_text_config"):
+        return config.get_text_config(decoder=True)
+    return config
+
+
+def kv_shape(config: Any) -> dict[str, int | str]:
+    cfg = text_config(config)
+    layers = int(getattr(cfg, "num_hidden_layers"))
+    hidden = int(getattr(cfg, "hidden_size"))
+    attention_heads = int(getattr(cfg, "num_attention_heads"))
+    kv_heads = int(getattr(cfg, "num_key_value_heads", attention_heads))
+    head_dim = int(getattr(cfg, "head_dim", hidden // attention_heads))
+    return {
+        "num_hidden_layers": layers,
+        "num_attention_heads": attention_heads,
+        "num_key_value_heads": kv_heads,
+        "head_dim": head_dim,
+        "kv_formula_type": "gqa_mqa" if kv_heads != attention_heads else "mha",
+    }
+
+
+def position_limit(config: Any) -> int | None:
+    value = getattr(config, "_kv_sweep_original_max_position_embeddings", None)
+    if value is None:
+        value = getattr(text_config(config), "max_position_embeddings", None)
+    if value is None:
+        return None
+    return int(value)
+
+
+def ratio_string(numerator: int | None, denominator: int | None) -> str:
+    if numerator is None or denominator in (None, 0):
+        return ""
+    return f"{numerator / denominator:.6f}"
 
 
 def cache_for_mode(mode: str, config: Any, args: argparse.Namespace) -> Any:
@@ -336,6 +392,10 @@ def run_case(
     final_vram = query_vram()
     peak_vram = max(samples) if samples else final_vram
     throughput = (tokens_processed / elapsed) if success and elapsed > 0 else 0.0
+    theory_bytes = theoretical_dynamic_kv_bytes(model.config, batch_size, seq_len, dtype)
+    shape = kv_shape(model.config)
+    max_positions = position_limit(model.config)
+    position_valid = "" if max_positions is None else seq_len <= max_positions
 
     return {
         "timestamp": now_iso(),
@@ -360,7 +420,19 @@ def run_case(
         "peak_vram_used_mib": f"{peak_vram:.6f}" if peak_vram is not None else "",
         "final_vram_used_mib": f"{final_vram:.6f}" if final_vram is not None else "",
         "final_cache_seq_len": final_cache_seq_len,
-        "theoretical_dynamic_kv_mib": mib(theoretical_dynamic_kv_bytes(model.config, batch_size, seq_len, dtype)),
+        "oom": status == "OOM",
+        "position_valid": position_valid,
+        "max_position_embeddings": max_positions if max_positions is not None else "",
+        "num_hidden_layers": shape["num_hidden_layers"],
+        "num_attention_heads": shape["num_attention_heads"],
+        "num_key_value_heads": shape["num_key_value_heads"],
+        "head_dim": shape["head_dim"],
+        "kv_formula_type": shape["kv_formula_type"],
+        "kv_theory_mb": mib(theory_bytes),
+        "kv_actual_mb": mib(cache_total_bytes),
+        "kv_actual_over_theory": ratio_string(cache_total_bytes, theory_bytes),
+        "peak_memory_mb": mib(peak_allocated),
+        "theoretical_dynamic_kv_mib": mib(theory_bytes),
         "cache_tensor_total_mib": mib(cache_total_bytes),
         "cache_tensor_cuda_mib": mib(cache_cuda_bytes),
         "quant_backend": args.quant_backend if mode == "quantized" else "",
@@ -431,6 +503,9 @@ def main() -> int:
         local_files_only=local_files_only,
         low_cpu_mem_usage=True,
     )
+    original_max_positions = getattr(text_config(model.config), "max_position_embeddings", None)
+    if original_max_positions is not None:
+        model.config._kv_sweep_original_max_position_embeddings = int(original_max_positions)
     extended = extend_opt_positions(model, max_seq_len)
     if extended:
         print(f"extended OPT positional embeddings to seq_len={max_seq_len}", flush=True)
