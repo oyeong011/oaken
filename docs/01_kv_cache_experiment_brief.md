@@ -30,7 +30,7 @@ LLM autoregressive inference는 이전 token의 key/value tensor를 layer별로 
 | OPT-1.3B model | `facebook/opt-1.3b` | `results/rtx5060_opt13b_dynamic_boundary.csv` |
 | OPT-1.3B cache modes | dynamic, quantized, no_cache | `results/rtx5060_opt13b_combined.csv` |
 | Software stack | PyTorch 2.12.0+cu130, Transformers 5.8.1 | `README.md` |
-| RTX 5080 Oaken-style evidence | OPT-1.3B, OPT-2.7B OK; OPT-6.7B boundary | `results/oaken_consumer_gpu_summary.csv` |
+| RTX 5080 Oaken-style evidence | OPT-125M, OPT-350M, OPT-1.3B, OPT-2.7B OK; OPT-6.7B boundary | `results/oaken_consumer_gpu_summary.csv`, `results/rtx5080/opt-6.7b/summary.md` |
 
 ## 5. 이론식
 
@@ -44,9 +44,11 @@ KV bytes = 2 * num_layers * batch_size * sequence_length * hidden_size * bytes_p
 
 ## 6. RTX 5080 결과
 
-현재 repo 안의 RTX 5080 evidence는 Qwen cache-policy sweep이 아니라 Oaken-style OPT result summary이다. `results/oaken_consumer_gpu_summary.csv`에는 RTX 5080 OPT-1.3B와 OPT-2.7B가 `OK`, RTX 5080 OPT-6.7B가 `Boundary`로 기록되어 있다. `results/rtx5080/opt-6.7b/summary.md`는 original FP16 eval과 profiling은 성공했지만 Oaken eval이 OOM이라고 기록한다. 같은 파일에서 original eval peak VRAM은 15806 MiB, Oaken eval peak VRAM은 15826 MiB이다.
+현재 repo 안의 RTX 5080 evidence는 RTX 5060 Qwen/OPT cache-policy sweep과 같은 유형이 아니다. 5080 근거는 Oaken-style Wikitext accuracy artifact와 OPT model-size별 VRAM boundary이다. `results/oaken_consumer_gpu_summary.csv`와 per-model summary는 RTX 5080에서 OPT-125M, OPT-350M, OPT-1.3B, OPT-2.7B의 Oaken Wikitext evaluation이 완료되었고, OPT-6.7B가 upper boundary case임을 기록한다.
 
-Prior note의 `80 total / 76 OK / 4 OOM`, relative throughput, relative peak memory delta 숫자는 현재 `/home/ssu/oaken` repository 안에서 source CSV를 찾지 못했다. 따라서 이 문서에서는 그 숫자를 확정 claim으로 사용하지 않는다.
+특히 `results/rtx5080/opt-6.7b/summary.md`는 original FP16 Wikitext eval과 Oaken profiling이 `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`에서 완료되었지만, Oaken Wikitext eval은 CUDA OOM으로 실패했다고 기록한다. 같은 파일의 peak VRAM은 original eval 15806 MiB, Oaken eval 15826 MiB이다. 따라서 5080 결과는 "5080에서도 Qwen cache-policy sweep이 끝났다"가 아니라, 16GB-class consumer GPU에서도 model size가 커지면 VRAM capacity boundary가 실질적 한계가 된다는 근거로 사용해야 한다.
+
+Prior note의 RTX 5080 `80 total / 76 OK / 4 OOM`, relative throughput, relative peak memory delta 숫자는 현재 `/home/ssu/oaken` repository 안에서 source CSV를 찾지 못했다. 따라서 이 문서에서는 그 숫자를 file-backed 확정 claim으로 사용하지 않는다.
 
 ## 7. RTX 5060 OPT-1.3B 결과
 
@@ -81,6 +83,7 @@ Quantized rescue row의 `kv_actual_over_theory`는 `8x12288`에서 0.288737, `8x
 - Oaken paper full reproduction.
 - 모든 모델/모든 GPU에서 quantized cache가 항상 유리하다는 일반 명제.
 - Qwen 5080 cross-GPU cache-policy sweep; 해당 CSV는 현재 repo에서 찾지 못했다.
+- RTX 5080 Qwen cache-policy sweep 또는 RTX 5080 dynamic/quantized/no_cache 비교; 현재 repo의 5080 evidence는 OPT Oaken-style Wikitext/VRAM boundary이다.
 - 품질 degradation이나 perplexity 변화; Qwen boundary sweep은 random token 기반 memory sweep이다.
 
 ### Future work
@@ -102,4 +105,7 @@ Quantized rescue row의 `kv_actual_over_theory`는 `8x12288`에서 0.288737, `8x
 | OPT dynamic OOM cases | `results/rtx5060_opt13b_dynamic_boundary.csv` | 4 OOM rows | HIGH |
 | OPT quantized rescue partial success | `results/rtx5060_opt13b_rescue_cases.csv` | quantized OK at `4x8192`, `8x4096`; OOM at `8x6144`, `8x8192` | HIGH |
 | Offloaded host-memory issue | `README.md` | 15 GiB RAM / no swap; offloaded runs killed before valid rows | MEDIUM |
+| RTX 5080 OPT Oaken Wikitext eval completed through OPT-2.7B | `results/oaken_consumer_gpu_summary.csv`, `results/rtx5080/opt-125m/summary.md`, `results/rtx5080/opt-350m/summary.md`, `results/rtx5080/opt-1.3b/summary.md`, `results/rtx5080/opt-2.7b/summary.md` | OPT-125M, OPT-350M, OPT-1.3B, OPT-2.7B status `OK` | HIGH |
+| RTX 5080 OPT-6.7B is the upper boundary case | `results/oaken_consumer_gpu_summary.csv`, `results/rtx5080/opt-6.7b/summary.md` | status `Boundary`; original eval/profiling completed with expandable allocator; Oaken eval CUDA OOM | HIGH |
+| RTX 5080 OPT-6.7B reached about 15.8GB peak VRAM | `results/rtx5080/opt-6.7b/summary.md` | original eval 15806 MiB; Oaken eval 15826 MiB | HIGH |
 | RTX 5080 Qwen 80-row cache-policy result | not found in repository | not found in repository | LOW |

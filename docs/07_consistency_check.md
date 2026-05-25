@@ -21,6 +21,9 @@
 | OPT quantized OK at `4x8192` and `8x4096` | README, docs/01, docs/03 | `results/rtx5060_opt13b_rescue_cases.csv` | Yes | Both rows have `status=OK`. |
 | OPT quantized OOM at `8x6144` and `8x8192` | README, docs/01, docs/03 | `results/rtx5060_opt13b_rescue_cases.csv` | Yes | Both rows have `status=OOM`. |
 | Offloaded RTX 5060 attempt hit 15 GiB RAM / no swap host-memory pressure | README, docs/01-04 | `README.md` | Partially | README records this limitation; no valid offloaded result row exists in the inspected result CSVs. |
+| RTX 5080 OPT-125M, OPT-350M, OPT-1.3B, OPT-2.7B completed Oaken Wikitext evaluation | docs/01, docs/02, docs/03, docs/05, docs/06 | `results/oaken_consumer_gpu_summary.csv`, `results/rtx5080/opt-125m/summary.md`, `results/rtx5080/opt-350m/summary.md`, `results/rtx5080/opt-1.3b/summary.md`, `results/rtx5080/opt-2.7b/summary.md` | Yes | This is Oaken-style Wikitext/OPT evidence, not Qwen cache-policy sweep evidence. |
+| RTX 5080 OPT-6.7B is the upper boundary case | docs/01, docs/02, docs/03, docs/05, docs/06 | `results/oaken_consumer_gpu_summary.csv`, `results/rtx5080/opt-6.7b/summary.md` | Yes | Summary marks status `Boundary`; per-run summary says Oaken eval failed with CUDA OOM. |
+| RTX 5080 OPT-6.7B original eval and profiling completed only with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` | docs/01, docs/03, docs/05 | `results/oaken_consumer_gpu_summary.md`, `results/rtx5080/opt-6.7b/summary.md` | Yes | Without allocator tuning, original FP16 eval failed near the same boundary. |
 | RTX 5080 OPT-6.7B original peak 15806 MiB and Oaken eval peak 15826 MiB | docs/01 | `results/rtx5080/opt-6.7b/summary.md` | Yes | This is repo-backed 5080 OPT evidence, not Qwen cache-policy evidence. |
 | Prior-note RTX 5080 Qwen `80 total / 76 OK / 4 OOM` and throughput ratios | docs/00, docs/01 | Not found in this repository | Not claimed | Docs explicitly mark these as missing from `/home/ssu/oaken`. |
 
@@ -34,6 +37,7 @@
 | no_cache as practical serving method | The docs consistently call `no_cache` a lower-bound / ablation, not a practical serving policy. |
 | Total memory reduction overclaim | Qwen 0.288737 / 0.286865 is described as KV-cache tensor footprint ratio, not total CUDA peak memory reduction. |
 | OPT long-context overclaim | OPT >2048 sequence results are described as memory stress evidence, while Qwen is used for position-valid long-context evidence. |
+| RTX 5080 evidence type overclaim | Docs separate RTX 5060 cache-policy sweep from RTX 5080 OPT Oaken-style Wikitext/VRAM boundary evidence. |
 
 ## 3. Missing evidence
 
@@ -46,10 +50,10 @@
 
 ## 4. Fixes applied
 
-No additional wording fixes were required after the consistency pass. The generated docs already weaken unsupported prior-note RTX 5080 Qwen numbers and avoid unsupported claims about Oaken reproduction, universal quantization speedup, offloading, and `no_cache`.
+Updated the KAIRI and lab-meeting documents to separate evidence types: RTX 5060 is now framed as the dynamic/quantized/no_cache cache-policy sweep with Qwen position-valid rescue, while RTX 5080 is framed as Oaken-style Wikitext accuracy and OPT model-size VRAM boundary evidence. Added the RTX 5080 slide wording "Oaken-style accuracy path and 16GB boundary" and removed/avoided any implication that RTX 5080 has repo-backed Qwen cache-policy sweep results. The unsupported prior-note RTX 5080 `80 total / 76 OK / 4 OOM` numbers remain explicitly non-file-backed.
 
 ## 5. Final confidence
 
 **MOSTLY READY**
 
-RTX 5060 Qwen position-valid dynamic OOM / quantized rescue evidence is strong and file-backed. RTX 5060 OPT memory-stress evidence is also consistent with the CSVs. The remaining manual-check risk is the missing repository-backed RTX 5080 Qwen cross-GPU sweep and the absence of quality/perplexity and detailed latency evidence.
+RTX 5060 Qwen position-valid dynamic OOM / quantized rescue evidence is strong and file-backed. RTX 5060 OPT memory-stress evidence is also consistent with the CSVs. RTX 5080 evidence is file-backed for the Oaken-style OPT Wikitext accuracy path and OPT-6.7B 16GB-class boundary, but not for a Qwen cache-policy sweep. Readiness remains MOSTLY READY until RTX 5080 Qwen cache-policy CSV, quality/perplexity for Qwen quantized cache, and prefill/decode latency separation are added.

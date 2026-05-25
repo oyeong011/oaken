@@ -3,7 +3,7 @@
 ## Slide 1. Title
 
 - **Main message:** Consumer GPU에서도 LLM KV-cache memory pressure는 직접 관찰 가능한 systems bottleneck이다.
-- **Bullet points:** Oaken-inspired experiment; RTX 5060 중심; dynamic/quantized/no_cache; 5080은 future cross-GPU target.
+- **Bullet points:** Oaken-inspired experiment; RTX 5060 cache-policy sweep; RTX 5080 Oaken-style OPT boundary; full reproduction 아님.
 - **Suggested figure/table:** 없음.
 - **Source file:** `README.md`
 - **Speaker note:** Full Oaken reproduction이 아니라 memory-pressure experiment라고 먼저 선 긋기.
@@ -72,26 +72,26 @@
 - **Source file:** `results/plots_rtx5060_qwen25_15b_combined/throughput_vs_peak_memory.png`
 - **Speaker note:** no_cache throughput caveat: chunked sweep is not real decode serving.
 
-## Slide 10. RTX 5080 Evidence and Missing Comparison
+## Slide 10. RTX 5080: Oaken-style accuracy path and 16GB boundary
 
-- **Main message:** Repo has RTX 5080 OPT Oaken-style boundary evidence, but not Qwen cache-policy cross-GPU evidence.
-- **Bullet points:** OPT-1.3B and OPT-2.7B OK; OPT-6.7B boundary; Qwen 5080 sweep is next experiment.
+- **Main message:** RTX 5080 evidence is an OPT Oaken-style Wikitext/VRAM boundary artifact, not a Qwen cache-policy sweep.
+- **Bullet points:** OPT-125M~2.7B: Oaken Wikitext evaluation completed; OPT-6.7B: original eval + profiling completed only with expandable allocator; OPT-6.7B Oaken eval still OOM near 15.8GB peak VRAM; 5080 shifts the memory boundary to larger models.
 - **Suggested figure/table:** summary table from `results/oaken_consumer_gpu_summary.csv`.
-- **Source file:** `results/oaken_consumer_gpu_summary.csv`, `results/rtx5080/opt-6.7b/summary.md`
-- **Speaker note:** 5080 Qwen numbers must not be invented.
+- **Source file:** `results/oaken_consumer_gpu_summary.csv`, `results/oaken_consumer_gpu_summary.md`, `results/rtx5080/opt-125m/summary.md`, `results/rtx5080/opt-350m/summary.md`, `results/rtx5080/opt-1.3b/summary.md`, `results/rtx5080/opt-2.7b/summary.md`, `results/rtx5080/opt-6.7b/summary.md`
+- **Speaker note:** 5080을 5060식 dynamic/quantized/no_cache sweep으로 말하지 말고, Oaken-style accuracy path와 16GB boundary로 설명.
 
 ## Slide 11. Limitations
 
 - **Main message:** The current result is useful but bounded.
-- **Bullet points:** not full Oaken reproduction; limited models/hardware; Qwen quality not measured; prefill/decode not separated; offloading host RAM issue.
+- **Bullet points:** not full Oaken reproduction; limited models/hardware; Qwen quality not measured; prefill/decode not separated; RTX 5080 Qwen cache-policy CSV missing; offloading host RAM issue.
 - **Suggested figure/table:** limitation table.
 - **Source file:** `docs/04_defense_qna.md`
 - **Speaker note:** 한계를 먼저 인정하면 공격을 줄일 수 있음.
 
 ## Slide 12. Next Steps
 
-- **Main message:** Cross-GPU Qwen comparison is the most important next experiment.
-- **Bullet points:** run Qwen 5080 recheck; find 5080 boundary; quantized rescue around boundary; add quality and latency distribution.
+- **Main message:** Cross-GPU Qwen cache-policy comparison remains the most important missing experiment.
+- **Bullet points:** run Qwen 5080 recheck; find 5080 Qwen boundary; quantized rescue around boundary; add quality/perplexity and prefill/decode latency distribution.
 - **Suggested figure/table:** planned comparison table.
 - **Source file:** Missing plot: RTX 5080 Qwen combined plot. Generate after `results/rtx5080_qwen25_15b_combined.csv` exists using `scripts/plot_kv_cache_sweep.py`.
 - **Speaker note:** 다음 질문이 명확해야 발표가 연구처럼 보임.
