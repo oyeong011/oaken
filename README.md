@@ -303,3 +303,239 @@ Install the package with the following command.
 ```sh
 $ pip install peft==0.10.0
 ```
+
+## 6. KV-cache Capacity Boundary Sweep
+
+The Oaken artifact is not enough by itself to prove that "KV-cache gets larger"
+is the interesting result. The useful question is where the execution policy
+breaks: for the same model and GPU, how do `dynamic`, `quantized`, `offloaded`,
+and `no_cache` change memory, throughput, and the OOM boundary?
+
+The sweep harness below records successful runs and failures in the same CSV.
+OOM rows are experiment results, not discarded noise.
+
+### 6.1. Research Questions
+
+1. Does the theoretical KV-cache footprint match actual `past_key_values` tensor bytes?
+2. How much of CUDA peak memory is not explained by the KV tensors?
+3. Is the OOM boundary more sensitive to batch size, sequence length, or their product?
+4. Do `quantized` and `offloaded` cache modes pass cases where `dynamic` fails?
+
+The key interpretation is that KV-cache optimization is not automatically a
+speedup technique. It is most meaningful when it expands the feasible
+long-context or big-batch serving region that would otherwise hit GPU memory
+capacity.
+
+### 6.2. Output Columns
+
+`scripts/run_kv_cache_sweep.py` writes at least these columns:
+
+- `gpu`
+- `model`
+- `cache_mode`
+- `batch_size`
+- `seq_len`
+- `dtype`
+- `status`: `ok`, `oom`, or `error`
+- `oom`
+- `peak_memory_mb`
+- `allocated_memory_mb`
+- `reserved_memory_mb`
+- `kv_theory_mb`
+- `kv_actual_mb`
+- `kv_actual_over_theory`
+- `non_kv_overhead_mb`
+- `tokens_per_sec`
+- `latency_ms`
+- `generated_tokens`
+- `error_message`
+- `max_position_embeddings`
+- `num_attention_heads`
+- `num_key_value_heads`
+- `head_dim`
+- `kv_formula_type`: `mha` or `gqa_mqa`
+- `position_valid`
+
+Use `kv_actual_over_theory` to validate the KV formula and
+`non_kv_overhead_mb = peak_memory_mb - kv_actual_mb` to separate KV pressure
+from model weights, activations, temporary buffers, and allocator overhead.
+Use `position_valid` to separate normal model-valid inference from synthetic
+memory stress beyond the model's configured position window.
+
+### 6.3. Experiment 1: OPT-1.3B KV-cache Memory Stress Test on RTX 5060 8GB
+
+OPT-1.3B is useful as a baseline stress test, but its configured position
+window is 2048 tokens. Rows above that limit should be described as KV-cache
+memory stress, not as valid OPT long-context inference.
+
+First, run the position-valid OPT window:
+
+```sh
+cd /home/ssu/oaken
+
+python3 scripts/run_kv_cache_sweep.py \
+  --model facebook/opt-1.3b \
+  --gpu-name rtx5060-8gb \
+  --dtype fp16 \
+  --batch-sizes 1 2 4 8 \
+  --seq-lens 512 1024 1536 2048 \
+  --cache-modes dynamic quantized no_cache \
+  --output results/rtx5060_opt13b_position_valid_sweep.csv
+```
+
+If you also run longer OPT sequences, interpret `position_valid=false` rows as
+capacity stress tests only.
+
+### 6.4. Experiment 2: Position-valid Long-context Boundary with Qwen2.5-1.5B
+
+Use a model with a larger configured position window to test whether the
+dynamic OOM and quantized rescue pattern holds for normal long-context
+inference:
+
+```sh
+cd /home/ssu/oaken
+
+python3 scripts/run_kv_cache_sweep.py \
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --gpu-name rtx5060-8gb \
+  --dtype fp16 \
+  --batch-sizes 1 \
+  --seq-lens 1024 2048 \
+  --cache-modes dynamic quantized \
+  --output results/rtx5060_qwen25_15b_sanity.csv
+```
+
+If the sanity run passes, run the dynamic boundary:
+
+```sh
+python3 scripts/run_kv_cache_sweep.py \
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --gpu-name rtx5060-8gb \
+  --dtype fp16 \
+  --batch-sizes 1 2 4 8 \
+  --seq-lens 1024 2048 4096 8192 12288 16384 \
+  --cache-modes dynamic \
+  --output results/rtx5060_qwen25_15b_dynamic_boundary.csv
+```
+
+Then retest only the dynamic-OOM region with cache compression. Keep
+`offloaded` out until host RAM/swap is controlled, because offloaded cache can
+move the failure mode from GPU OOM to host memory pressure.
+
+```sh
+python3 scripts/run_kv_cache_sweep.py \
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --gpu-name rtx5060-8gb \
+  --dtype fp16 \
+  --batch-sizes 2 4 8 \
+  --seq-lens 4096 8192 12288 16384 \
+  --cache-modes quantized no_cache \
+  --output results/rtx5060_qwen25_15b_rescue_cases.csv
+```
+
+Combine and plot:
+
+```sh
+cat results/rtx5060_qwen25_15b_dynamic_boundary.csv > results/rtx5060_qwen25_15b_combined.csv
+tail -n +2 results/rtx5060_qwen25_15b_rescue_cases.csv >> results/rtx5060_qwen25_15b_combined.csv
+
+python3 scripts/plot_kv_cache_sweep.py \
+  --input results/rtx5060_qwen25_15b_combined.csv \
+  --output-dir results/plots_rtx5060_qwen25_15b_combined
+```
+
+The most important artifact is
+`results/plots_rtx5060_qwen25_15b_combined/dynamic_oom_rescue_cases.csv`.
+If it is non-empty, the result supports feasible-region expansion: dynamic
+cache failed, while quantized cache made at least some position-valid
+long-context cases executable.
+
+### 6.5. RTX 5080 Boundary Refinement
+
+This run focuses around the known long-context boundary instead of repeating
+small easy cases:
+
+```sh
+cd /home/ssu/oaken
+
+python3 scripts/run_kv_cache_sweep.py \
+  --model facebook/opt-1.3b \
+  --gpu-name rtx5080 \
+  --dtype fp16 \
+  --batch-sizes 4 6 8 10 12 \
+  --seq-lens 4096 6144 8192 10240 12288 \
+  --cache-modes dynamic quantized offloaded no_cache \
+  --output results/rtx5080_boundary.csv \
+  --warmup
+
+python3 scripts/plot_kv_cache_sweep.py \
+  --csv results/rtx5080_boundary.csv \
+  --outdir results/rtx5080_boundary_plots
+```
+
+If a Transformers/model combination reports that a cache mode is unsupported,
+that row is kept as `status=error`. For cache-mode comparisons, prefer a model
+that supports HF cache classes, such as the Qwen model used in the existing
+consumer-GPU benchmark:
+
+```sh
+python3 scripts/run_kv_cache_sweep.py \
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --gpu-name rtx5080 \
+  --dtype fp16 \
+  --batch-sizes 4 6 8 10 12 \
+  --seq-lens 4096 6144 8192 10240 12288 \
+  --cache-modes dynamic quantized offloaded no_cache \
+  --output results/rtx5080_qwen_boundary.csv \
+  --warmup \
+  --trust-remote-code
+```
+
+### 6.6. RTX 5060 8GB Sweep
+
+The 5060 target is different: use the smaller VRAM budget to show how quickly
+long-context inference reaches the capacity wall.
+
+```sh
+cd /home/ssu/oaken
+
+python3 scripts/run_kv_cache_sweep.py \
+  --model facebook/opt-1.3b \
+  --gpu-name rtx5060-8gb \
+  --dtype fp16 \
+  --batch-sizes 1 2 4 8 \
+  --seq-lens 512 1024 2048 4096 6144 8192 \
+  --cache-modes dynamic quantized offloaded no_cache \
+  --output results/rtx5060_8gb_sweep.csv \
+  --warmup
+
+python3 scripts/plot_kv_cache_sweep.py \
+  --csv results/rtx5060_8gb_sweep.csv \
+  --outdir results/rtx5060_8gb_plots
+```
+
+When time is short, run this narrower sequence first:
+
+```sh
+python3 scripts/run_kv_cache_sweep.py \
+  --model facebook/opt-1.3b \
+  --gpu-name rtx5060-8gb \
+  --dtype fp16 \
+  --batch-sizes 1 2 4 8 \
+  --seq-lens 1024 2048 4096 8192 \
+  --cache-modes dynamic \
+  --output results/rtx5060_dynamic_boundary.csv \
+  --warmup
+```
+
+Then re-run only the dynamic-OOM region with `quantized` and `offloaded`.
+
+### 6.7. Interpretation: KV-cache Optimization as Feasible-region Expansion
+
+The experiment shows that KV-cache footprint follows the theoretical scaling
+with batch size and sequence length, but the practical bottleneck appears at
+the GPU memory-capacity boundary. Dynamic KV-cache is the throughput baseline,
+while quantized and offloaded cache modes trade throughput for a larger
+feasible context/batch region. This suggests that KV-cache optimization is most
+meaningful not as a universal speedup technique, but as a memory-capacity
+extension mechanism for long-context LLM inference.
