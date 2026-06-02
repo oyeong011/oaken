@@ -1,0 +1,6 @@
+# run: opt-1.3b_oaken_profile_seq2048
+# start: 2026-05-12T19:45:45
+# idle_vram: None
+# command: docker exec -w /workspace oaken-ae-container /opt/conda/envs/oaken/bin/python oaken_preprocess_activation.py -m opt -s 1.3b -t wikitext -f 0.04 0.90 0.06 -o quantizer/oaken/opt-1.3b.json --gpu-start-idx 0 --gpu-count 1 --sequence-length 2048 --stride 2048
+
+permission denied while trying to connect to the docker API at unix:///var/run/docker.sock

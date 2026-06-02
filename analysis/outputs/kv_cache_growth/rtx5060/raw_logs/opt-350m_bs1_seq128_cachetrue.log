@@ -1,0 +1,39 @@
+run_start=2026-05-12T11:08:54
+model=opt-350m
+batch_size=1
+sequence_length=128
+use_cache=True
+start_memory_allocated_bytes=663343104
+start_memory_reserved_bytes=685768704
+layer 0: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 1: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 2: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 3: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 4: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 5: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 6: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 7: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 8: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 9: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 10: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 11: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 12: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 13: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 14: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 15: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 16: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 17: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 18: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 19: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 20: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 21: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 22: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+layer 23: key_shape=(1, 16, 128, 64) value_shape=(1, 16, 128, 64) key_bytes=262144 value_bytes=262144
+run_end=2026-05-12T11:08:54
+success=True
+theoretical_kv_bytes=12582912
+actual_past_key_values_bytes=12582912
+torch_cuda_max_memory_allocated_bytes=698497024
+torch_cuda_max_memory_reserved_bytes=717225984
+elapsed_sec=0.177770
+vram_csv=analysis/outputs/kv_cache_growth/rtx5060/raw_logs/opt-350m_bs1_seq128_cachetrue_vram.csv

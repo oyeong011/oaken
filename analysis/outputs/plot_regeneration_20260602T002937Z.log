@@ -1,0 +1,9 @@
+# Plot regeneration from CSV only 2026-06-02T09:29:37+09:00
+python=/home/ssu/kv-cache-consumer-gpu-bench/.venv/bin/python
++ /home/ssu/kv-cache-consumer-gpu-bench/.venv/bin/python analysis/plot_kv_cache_growth.py --input analysis/outputs/kv_cache_growth/rtx5060/kv_cache_growth.csv --output-dir analysis/outputs/kv_cache_growth/rtx5060
+wrote KV-cache growth plots to analysis/outputs/kv_cache_growth/rtx5060
++ /home/ssu/kv-cache-consumer-gpu-bench/.venv/bin/python scripts/plot_kv_cache_sweep.py --input results/rtx5060_qwen25_15b_combined.csv --output-dir results/plots_rtx5060_qwen25_15b_combined
+wrote plots and derived CSVs to results/plots_rtx5060_qwen25_15b_combined
++ /home/ssu/kv-cache-consumer-gpu-bench/.venv/bin/python scripts/plot_kv_cache_sweep.py --input results/rtx5060_opt13b_combined.csv --output-dir results/plots_rtx5060_combined
+wrote plots and derived CSVs to results/plots_rtx5060_combined
+exit_code=0

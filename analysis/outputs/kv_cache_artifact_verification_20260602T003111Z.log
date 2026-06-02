@@ -1,0 +1,54 @@
+# KV-cache artifact verification 2026-06-02T09:31:11+09:00
+hostname=ssu-22663-09
+git_head=dd2ea6a 2026-05-25T20:16:00+09:00 Recover RTX 5060 briefing evidence
+
+## Current RTX 5060 host
+name, memory.total [MiB], driver_version
+NVIDIA GeForce RTX 5060, 8151 MiB, 590.48.01
+python 3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]
+torch 2.12.0+cu130
+torch_cuda 13.0
+transformers 5.8.1
+pandas 2.3.3
+matplotlib 3.10.9
+cuda_available True
+gpu NVIDIA GeForce RTX 5060
+
+## Relevant file stats
+2026-05-12 20:07:29.706072213 +0900 24748 analysis/kv_cache_growth.py
+2026-06-02 09:29:28.575100437 +0900 4210 analysis/plot_kv_cache_growth.py
+2026-06-02 09:30:27.024276196 +0900 2691 analysis/plot_kv_cache_pressure.py
+2026-05-25 19:39:01.289528115 +0900 18860 scripts/run_kv_cache_sweep.py
+2026-05-25 19:39:01.285528024 +0900 6833 scripts/plot_kv_cache_sweep.py
+2026-05-12 20:09:00.250045026 +0900 6470 analysis/outputs/kv_cache_growth/rtx5060/kv_cache_growth.csv
+2026-06-02 09:29:38.211127785 +0900 178879 analysis/outputs/kv_cache_growth/rtx5060/kv_theory_actual_vs_seq_len.png
+2026-06-02 09:29:38.313128078 +0900 91091 analysis/outputs/kv_cache_growth/rtx5060/actual_vs_theoretical_kv.png
+2026-06-02 09:29:38.407128348 +0900 136115 analysis/outputs/kv_cache_growth/rtx5060/peak_cuda_allocated_vs_seq_len.png
+2026-05-25 19:39:01.289528115 +0900 10940 results/rtx5060_qwen25_15b_dynamic_boundary.csv
+2026-05-25 19:39:01.289528115 +0900 2121 results/rtx5060_qwen25_15b_rescue_cases.csv
+2026-05-25 19:39:01.289528115 +0900 12452 results/rtx5060_qwen25_15b_combined.csv
+2026-06-02 09:29:38.805129492 +0900 147630 results/plots_rtx5060_qwen25_15b_combined/peak_memory_vs_seq_len.png
+2026-06-02 09:29:38.894129748 +0900 77358 results/plots_rtx5060_qwen25_15b_combined/throughput_vs_peak_memory.png
+2026-06-02 09:29:38.896129754 +0900 2782 results/plots_rtx5060_qwen25_15b_combined/status_boundary_matrix.csv
+2026-06-02 09:29:38.898129760 +0900 1436 results/plots_rtx5060_qwen25_15b_combined/oom_cases.csv
+2026-06-02 09:29:38.900129765 +0900 2819 results/plots_rtx5060_qwen25_15b_combined/dynamic_oom_rescue_cases.csv
+2026-05-25 19:36:07.394395786 +0900 2395 analysis/outputs/kv_cache_pressure/rtx5080/kv_cache_pressure.csv
+2026-05-25 19:36:07.394395786 +0900 5386 analysis/outputs/kv_cache_pressure/rtx5080/logs.md
+2026-06-02 09:30:35.073302185 +0900 107475 analysis/outputs/kv_cache_pressure/rtx5080/peak_vram_vs_seq_len.png
+2026-06-02 09:30:35.164302482 +0900 94498 analysis/outputs/kv_cache_pressure/rtx5080/ppl_vs_seq_len.png
+2026-06-02 09:30:35.247302752 +0900 82400 analysis/outputs/kv_cache_pressure/rtx5080/elapsed_vs_seq_len.png
+2026-05-11 12:44:37.816465724 +0900 1638 results/oaken_consumer_gpu_summary.csv
+2026-05-10 00:25:03.506091863 +0900 582 results/rtx5080/opt-1.3b/hardware.txt
+2026-05-10 10:18:31.885646999 +0900 1926 results/rtx5080/opt-6.7b/summary.md
+
+## CSV schemas and row counts
+analysis/outputs/kv_cache_growth/rtx5060/kv_cache_growth.csv: data_rows=36 columns=['model', 'gpu_name', 'num_layers', 'hidden_size', 'batch_size', 'sequence_length', 'dtype', 'use_cache', 'theoretical_kv_bytes', 'theoretical_kv_mib', 'actual_past_key_values_bytes', 'actual_past_key_values_mib', 'theoretical_actual_ratio', 'torch_cuda_max_memory_allocated_bytes', 'torch_cuda_max_memory_allocated_mib', 'torch_cuda_max_memory_reserved_bytes', 'torch_cuda_max_memory_reserved_mib', 'elapsed_sec', 'success', 'error_type', 'error_message']
+results/rtx5060_qwen25_15b_dynamic_boundary.csv: data_rows=24 columns=['timestamp', 'gpu_name', 'detected_gpu_name', 'model', 'resolved_model', 'dtype', 'cache_mode', 'batch_size', 'seq_len', 'chunk_size', 'status', 'success', 'error_type', 'error_message', 'elapsed_sec', 'tokens_processed', 'throughput_tokens_per_sec', 'peak_memory_allocated_mib', 'peak_memory_reserved_mib', 'peak_vram_used_mib', 'final_vram_used_mib', 'final_cache_seq_len', 'oom', 'position_valid', 'max_position_embeddings', 'num_hidden_layers', 'num_attention_heads', 'num_key_value_heads', 'head_dim', 'kv_formula_type', 'kv_theory_mb', 'kv_actual_mb', 'kv_actual_over_theory', 'peak_memory_mb', 'theoretical_dynamic_kv_mib', 'cache_tensor_total_mib', 'cache_tensor_cuda_mib', 'quant_backend', 'quant_bits', 'measurement']
+results/rtx5060_qwen25_15b_rescue_cases.csv: data_rows=4 columns=['timestamp', 'gpu_name', 'detected_gpu_name', 'model', 'resolved_model', 'dtype', 'cache_mode', 'batch_size', 'seq_len', 'chunk_size', 'status', 'success', 'error_type', 'error_message', 'elapsed_sec', 'tokens_processed', 'throughput_tokens_per_sec', 'peak_memory_allocated_mib', 'peak_memory_reserved_mib', 'peak_vram_used_mib', 'final_vram_used_mib', 'final_cache_seq_len', 'oom', 'position_valid', 'max_position_embeddings', 'num_hidden_layers', 'num_attention_heads', 'num_key_value_heads', 'head_dim', 'kv_formula_type', 'kv_theory_mb', 'kv_actual_mb', 'kv_actual_over_theory', 'peak_memory_mb', 'theoretical_dynamic_kv_mib', 'cache_tensor_total_mib', 'cache_tensor_cuda_mib', 'quant_backend', 'quant_bits', 'measurement']
+results/rtx5060_qwen25_15b_combined.csv: data_rows=28 columns=['timestamp', 'gpu_name', 'detected_gpu_name', 'model', 'resolved_model', 'dtype', 'cache_mode', 'batch_size', 'seq_len', 'chunk_size', 'status', 'success', 'error_type', 'error_message', 'elapsed_sec', 'tokens_processed', 'throughput_tokens_per_sec', 'peak_memory_allocated_mib', 'peak_memory_reserved_mib', 'peak_vram_used_mib', 'final_vram_used_mib', 'final_cache_seq_len', 'oom', 'position_valid', 'max_position_embeddings', 'num_hidden_layers', 'num_attention_heads', 'num_key_value_heads', 'head_dim', 'kv_formula_type', 'kv_theory_mb', 'kv_actual_mb', 'kv_actual_over_theory', 'peak_memory_mb', 'theoretical_dynamic_kv_mib', 'cache_tensor_total_mib', 'cache_tensor_cuda_mib', 'quant_backend', 'quant_bits', 'measurement']
+results/plots_rtx5060_qwen25_15b_combined/status_boundary_matrix.csv: data_rows=28 columns=['model', 'cache_mode', 'batch_size', 'seq_len', 'status', 'success', 'error_type', 'peak_vram_used_mib', 'throughput_tokens_per_sec', 'final_cache_seq_len', 'theoretical_dynamic_kv_mib']
+results/plots_rtx5060_qwen25_15b_combined/oom_cases.csv: data_rows=2 columns=['model', 'cache_mode', 'batch_size', 'seq_len', 'status', 'error_type', 'error_message', 'peak_vram_used_mib', 'theoretical_dynamic_kv_mib']
+results/plots_rtx5060_qwen25_15b_combined/dynamic_oom_rescue_cases.csv: data_rows=4 columns=['model', 'batch_size', 'seq_len', 'rescue_cache_mode', 'rescue_status', 'rescue_peak_memory_mib', 'rescue_throughput_tokens_per_sec', 'dynamic_error_type', 'dynamic_error_message']
+analysis/outputs/kv_cache_pressure/rtx5080/kv_cache_pressure.csv: data_rows=10 columns=['model', 'gpu', 'sequence_length', 'mode', 'task', 'ppl', 'peak_vram_mib', 'elapsed_seconds', 'status', 'failure_reason', 'oom_point', 'idle_vram_mib', 'log_path', 'vram_csv']
+results/oaken_consumer_gpu_summary.csv: data_rows=9 columns=['gpu', 'model', 'original_ppl', 'oaken_ppl', 'ppl_delta', 'profiling_time_s', 'eval_time_s', 'peak_vram_gb', 'idle_vram_mib', 'status', 'notes']
+exit_code=0

@@ -1,0 +1,16 @@
+run_start=2026-05-12T11:08:59
+model=opt-1.3b
+batch_size=1
+sequence_length=128
+use_cache=False
+start_memory_allocated_bytes=2641084416
+start_memory_reserved_bytes=2850029568
+past_key_values is None
+run_end=2026-05-12T11:08:59
+success=True
+theoretical_kv_bytes=25165824
+actual_past_key_values_bytes=0
+torch_cuda_max_memory_allocated_bytes=2654480384
+torch_cuda_max_memory_reserved_bytes=2868903936
+elapsed_sec=0.011520
+vram_csv=analysis/outputs/kv_cache_growth/rtx5060/raw_logs/opt-1.3b_bs1_seq128_cachefalse_vram.csv

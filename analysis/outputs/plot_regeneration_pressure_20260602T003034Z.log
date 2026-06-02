@@ -1,0 +1,6 @@
+# KV-cache pressure plot regeneration from CSV 2026-06-02T09:30:34+09:00
++ /home/ssu/kv-cache-consumer-gpu-bench/.venv/bin/python analysis/plot_kv_cache_pressure.py --input analysis/outputs/kv_cache_pressure/rtx5080/kv_cache_pressure.csv --output-dir analysis/outputs/kv_cache_pressure/rtx5080
+wrote KV-cache pressure plots to analysis/outputs/kv_cache_pressure/rtx5080
++ /home/ssu/kv-cache-consumer-gpu-bench/.venv/bin/python analysis/plot_kv_cache_pressure.py --input analysis/outputs/kv_cache_pressure/rtx5060/kv_cache_pressure.csv --output-dir analysis/outputs/kv_cache_pressure/rtx5060
+wrote KV-cache pressure plots to analysis/outputs/kv_cache_pressure/rtx5060
+exit_code=0

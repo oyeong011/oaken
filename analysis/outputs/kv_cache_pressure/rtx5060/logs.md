@@ -1,0 +1,24 @@
+# KV Cache Pressure Logs
+
+| Model | Seq len | Mode | Status | Log | VRAM CSV |
+| --- | ---: | --- | --- | --- | --- |
+| OPT-350M | 128 | original_fp16 | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq128_original_fp16.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq128_original_fp16_vram.csv) |
+| OPT-350M | 128 | oaken | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq128_oaken.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq128_oaken_vram.csv) |
+| OPT-350M | 256 | original_fp16 | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq256_original_fp16.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq256_original_fp16_vram.csv) |
+| OPT-350M | 256 | oaken | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq256_oaken.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq256_oaken_vram.csv) |
+| OPT-350M | 512 | original_fp16 | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq512_original_fp16.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq512_original_fp16_vram.csv) |
+| OPT-350M | 512 | oaken | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq512_oaken.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq512_oaken_vram.csv) |
+| OPT-350M | 1024 | original_fp16 | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq1024_original_fp16.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq1024_original_fp16_vram.csv) |
+| OPT-350M | 1024 | oaken | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq1024_oaken.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq1024_oaken_vram.csv) |
+| OPT-350M | 2048 | original_fp16 | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq2048_original_fp16.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq2048_original_fp16_vram.csv) |
+| OPT-350M | 2048 | oaken | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq2048_oaken.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-350m_seq2048_oaken_vram.csv) |
+| OPT-1.3B | 128 | original_fp16 | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq128_original_fp16.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq128_original_fp16_vram.csv) |
+| OPT-1.3B | 128 | oaken | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq128_oaken.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq128_oaken_vram.csv) |
+| OPT-1.3B | 256 | original_fp16 | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq256_original_fp16.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq256_original_fp16_vram.csv) |
+| OPT-1.3B | 256 | oaken | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq256_oaken.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq256_oaken_vram.csv) |
+| OPT-1.3B | 512 | original_fp16 | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq512_original_fp16.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq512_original_fp16_vram.csv) |
+| OPT-1.3B | 512 | oaken | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq512_oaken.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq512_oaken_vram.csv) |
+| OPT-1.3B | 1024 | original_fp16 | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq1024_original_fp16.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq1024_original_fp16_vram.csv) |
+| OPT-1.3B | 1024 | oaken | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq1024_oaken.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq1024_oaken_vram.csv) |
+| OPT-1.3B | 2048 | original_fp16 | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq2048_original_fp16.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq2048_original_fp16_vram.csv) |
+| OPT-1.3B | 2048 | oaken | OK | [log](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq2048_oaken.log) | [vram](../../../../analysis/outputs/kv_cache_pressure/rtx5060/logs/opt-1.3b_seq2048_oaken_vram.csv) |

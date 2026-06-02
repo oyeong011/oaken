@@ -5,6 +5,15 @@ Oaken is an accleration solution that achieves high accuracy and high performanc
 This repository provides source code for evaluating the inference accuracy of Oaken and other baselines.
 Running the evaluation code requires Python 3.10 or later and CUDA 12.1 or later.
 
+## Two-machine KV-cache experiment index
+
+The latest file-backed two-machine writeup is in:
+
+- `docs/kv_cache_experiment_inventory.md`
+- `docs/kv_cache_two_machine_results.md`
+
+Those docs separate RTX 5060-backed Qwen/OPT evidence from RTX 5080-backed OPT-family evidence and explicitly mark missing RTX 5080 Qwen data.
+
 ## RTX 5060 8GB Boundary Result
 
 ### 1. Experiment Goal
